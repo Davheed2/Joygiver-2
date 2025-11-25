@@ -16,6 +16,7 @@ import {
 } from './helper';
 import { EnhancedAuthenticateResult, RefreshTokenPayload } from '../types';
 import { tokenFamilyRepository, userRepository } from '@/modules/user/repository';
+import { DateTime } from 'luxon';
 
 export const generateTokenPair = async (userId: string, existingFamilyId?: string, version: number = 1) => {
 	const accessToken = generateAccessToken(userId);
@@ -73,17 +74,23 @@ export const authenticate = async ({
 		if (currentUser.isSuspended) throw new AppError('Your account is currently suspended', 401);
 		if (currentUser.isDeleted) throw new AppError('Your account has been deleted', 404);
 
-		await userRepository.update(currentUser.id, { lastActive: new Date() });
-
 		// check if user has changed password after the token was issued
 		// if so, invalidate the token
-		// if (
-		// 	currentUser.passwordChangedAt &&
-		// 	DateTime.fromISO(currentUser.passwordChangedAt.toISOString()).toMillis() >
-		// 		DateTime.fromMillis((decoded.iat ?? 0) * 1000).toMillis()
-		// ) {
-		// 	throw new AppError('Password changed since last login. Please log in again!', 401);
-		// }
+		if (
+			currentUser.passwordChangedAt &&
+			DateTime.fromISO(currentUser.passwordChangedAt.toISOString()).toMillis() >
+				DateTime.fromMillis((decoded.iat ?? 0) * 1000).toMillis()
+		) {
+			throw new AppError('Password changed since last login. Please log in again!', 401);
+		}
+
+		try {
+			await userRepository.update(currentUser.id, { lastActive: new Date() });
+			//console.log('✅ Updated lastActive for user:', test);
+		} catch (updateError) {
+			console.error('❌ Error updating lastActive:', updateError);
+			// Don't throw - continue with authentication even if update fails
+		}
 		// csrf protection
 		// browser client fingerprinting
 		return currentUser;
@@ -215,6 +222,14 @@ export const authenticate = async ({
 		if (!currentUser) throw new AppError('User not found', 404);
 		if (currentUser.isSuspended) throw new AppError('Your account is currently suspended', 401);
 		if (currentUser.isDeleted) throw new AppError('Your account has been deleted', 404);
+
+		console.log('⏰ Updating lastActive for user (refresh flow):', currentUser.id);
+		try {
+			await userRepository.update(currentUser.id, { lastActive: new Date() });
+			console.log('✅ Updated lastActive (refresh flow)');
+		} catch (updateError) {
+			console.error('❌ Error updating lastActive:', updateError);
+		}
 
 		const { accessToken: newAccessToken, refreshToken: newRefreshToken } = await generateTokenPair(
 			currentUser.id,

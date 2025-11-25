@@ -11,3 +11,4 @@ export * from './wallet';
 export * from './friends';
 export * from './notification';
 export * from './sms';
+export * from './referralCode';

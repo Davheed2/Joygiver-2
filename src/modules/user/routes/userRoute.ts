@@ -8,8 +8,13 @@ const router = express.Router();
  * @openapi
  * /user/sign-up:
  *   post:
- *     summary: Register a new user with email or phone
- *     description: Creates a new user account with the provided email, phone number, first name, last name, gender, and date of birth. Validates that either email or phone is provided, ensures the email or phone is unique, and requires gender. Sends a welcome email upon successful registration. The registration completion status is set based on whether all required fields are provided.
+ *     summary: Initiate user registration
+ *     description: |
+ *       Creates a new user with either an email or phone number (at least one is required).
+ *       If the email/phone already exists, returns the existing user with a 200 status.
+ *       On successful creation, generates a 6-digit OTP, stores it with a 5-minute expiry,
+ *       increments OTP retry count, and sends the OTP via email or SMS.
+ *       Registration remains incomplete until OTP is verified and profile is fully updated.
  *     tags:
  *       - User
  *     requestBody:
@@ -21,38 +26,27 @@ const router = express.Router();
  *             properties:
  *               email:
  *                 type: string
- *                 nullable: true
+ *                 format: email
  *                 example: "uchennadavid2404@gmail.com"
- *                 description: The user's email address
- *               firstName:
- *                 type: string
- *                 nullable: true
- *                 example: null
- *                 description: The user's first name
- *               lastName:
- *                 type: string
- *                 nullable: true
- *                 example: null
- *                 description: The user's last name
+ *                 description: User's email address (provide if registering with email)
  *               phone:
  *                 type: string
- *                 nullable: true
- *                 example: ""
- *                 description: The user's phone number
- *               gender:
- *                 type: string
- *                 example: "male"
- *                 description: The user's gender
- *               dob:
- *                 type: string
- *                 nullable: true
- *                 example: ""
- *                 description: The user's date of birth
- *             required:
- *               - gender
+ *                 example: "+2348012345678"
+ *                 description: User's phone number in international format (provide if registering with phone)
+ *             additionalProperties: false
+ *             oneOf:
+ *               - required: [email]
+ *               - required: [phone]
+ *           examples:
+ *             With Email:
+ *               value:
+ *                 email: "uchennadavid2404@gmail.com"
+ *             With Phone:
+ *               value:
+ *                 phone: "+2348012345678"
  *     responses:
  *       201:
- *         description: User created successfully
+ *         description: User created successfully and OTP sent
  *         content:
  *           application/json:
  *             schema:
@@ -69,68 +63,116 @@ const router = express.Router();
  *                       id:
  *                         type: string
  *                         format: uuid
- *                         example: "09127216-c1a9-468e-9a96-d712ab67edd9"
- *                         description: The unique identifier of the user
+ *                         example: "8b6a69bd-8a89-4bd8-b853-311d21bdfec3"
  *                       email:
  *                         type: string
  *                         nullable: true
  *                         example: "uchennadavid2404@gmail.com"
- *                         description: The user's email address
  *                       firstName:
  *                         type: string
  *                         nullable: true
  *                         example: null
- *                         description: The user's first name
  *                       lastName:
  *                         type: string
  *                         nullable: true
  *                         example: null
- *                         description: The user's last name
- *                       phone:
+ *                       username:
  *                         type: string
- *                         nullable: true
  *                         example: ""
- *                         description: The user's phone number
+ *                       lastActive:
+ *                         type: string
+ *                         format: date-time
+ *                         nullable: true
+ *                         example: null
  *                       photo:
  *                         type: string
  *                         nullable: true
  *                         example: null
- *                         description: URL or path to the user's profile photo
  *                       role:
  *                         type: string
  *                         example: "user"
- *                         description: The user's role
+ *                       gender:
+ *                         type: string
+ *                         example: ""
+ *                       dob:
+ *                         type: string
+ *                         example: ""
+ *                       phone:
+ *                         type: string
+ *                         example: ""
  *                       isRegistrationComplete:
  *                         type: boolean
  *                         example: false
- *                         description: Indicates if the user registration is complete
  *                       isSuspended:
  *                         type: boolean
  *                         example: false
- *                         description: Indicates if the user account is suspended
  *                       isDeleted:
  *                         type: boolean
  *                         example: false
- *                         description: Indicates if the user account is deleted
+ *                       referredBy:
+ *                         type: string
+ *                         nullable: true
+ *                         example: null
+ *                       referralCount:
+ *                         type: integer
+ *                         example: 0
  *                       created_at:
  *                         type: string
  *                         format: date-time
- *                         example: "2025-10-05T04:48:50.177Z"
- *                         description: Timestamp when the user account was created
- *                       gender:
- *                         type: string
- *                         example: "male"
- *                         description: The user's gender
- *                       dob:
- *                         type: string
- *                         nullable: true
- *                         example: ""
- *                         description: The user's date of birth
+ *                         example: "2025-11-15T02:19:35.116Z"
  *                 message:
  *                   type: string
  *                   example: "User created successfully"
+ *             example:
+ *               status: "success"
+ *               data:
+ *                 - id: "8b6a69bd-8a89-4bd8-b853-311d21bdfec3"
+ *                   email: "uchennadavid2404@gmail.com"
+ *                   firstName: null
+ *                   lastName: null
+ *                   username: ""
+ *                   lastActive: null
+ *                   photo: null
+ *                   role: "user"
+ *                   gender: ""
+ *                   dob: ""
+ *                   phone: ""
+ *                   isRegistrationComplete: false
+ *                   isSuspended: false
+ *                   isDeleted: false
+ *                   referredBy: null
+ *                   referralCount: 0
+ *                   created_at: "2025-11-15T02:19:35.116Z"
+ *               message: "User created successfully"
+ *
+ *       200:
+ *         description: User already exists
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         format: uuid
+ *                       email:
+ *                         type: string
+ *                         nullable: true
+ *                       # ... same user fields as above
+ *                 message:
+ *                   type: string
+ *                   example: "User with this email already exists"
+ *
  *       400:
- *         description: Bad Request - Missing email or phone number, or missing gender
+ *         description: Bad request - Neither email nor phone provided
  *         content:
  *           application/json:
  *             schema:
@@ -142,8 +184,9 @@ const router = express.Router();
  *                 message:
  *                   type: string
  *                   example: "Either email or phone number is required"
- *       409:
- *         description: Conflict - User with the provided email or phone number already exists
+ *
+ *       429:
+ *         description: Too many OTP requests in the last hour
  *         content:
  *           application/json:
  *             schema:
@@ -154,9 +197,10 @@ const router = express.Router();
  *                   example: error
  *                 message:
  *                   type: string
- *                   example: "User with this email already exists"
+ *                   example: "Too many OTP requests. Please try again in an hour."
+ *
  *       500:
- *         description: Internal Server Error - Failed to create user
+ *         description: Internal server error
  *         content:
  *           application/json:
  *             schema:
@@ -174,8 +218,13 @@ router.post('/sign-up', userController.signUp);
  * @openapi
  * /user/sign-in:
  *   post:
- *     summary: Sign in a user with email or phone
- *     description: Initiates the authentication process for a user by either email or phone number. Validates the user's existence, checks for account suspension or deletion, and prompts the user to request an OTP to complete the sign-in process.
+ *     summary: Sign in with email/phone and password
+ *     description: |
+ *       Authenticate a user using either email or phone number along with their password.
+ *       On success: resets login retries, updates `lastLogin`, generates access & refresh tokens,
+ *       sets secure HttpOnly cookies, sends a login notification email (if email exists),
+ *       and returns the user profile.
+ *       Failed attempts are rate-limited: after 5 wrong attempts, login is blocked for 12 hours.
  *     tags:
  *       - User
  *     requestBody:
@@ -187,20 +236,42 @@ router.post('/sign-up', userController.signUp);
  *             properties:
  *               email:
  *                 type: string
- *                 nullable: true
+ *                 format: email
  *                 example: "uchennadavid2404@gmail.com"
- *                 description: The user's email address
+ *                 description: Registered email address
  *               phone:
  *                 type: string
- *                 nullable: true
- *                 example: ""
- *                 description: The user's phone number
- *             anyOf:
+ *                 example: "+2348012345678"
+ *                 description: Registered phone number (international format)
+ *               password:
+ *                 type: string
+ *                 minLength: 8
+ *                 example: "MySecurePass123!"
+ *                 description: User's account password
+ *             required:
+ *               - password
+ *             oneOf:
  *               - required: [email]
  *               - required: [phone]
+ *             additionalProperties: false
+ *           examples:
+ *             Login with Email:
+ *               value:
+ *                 email: "uchennadavid2404@gmail.com"
+ *                 password: "MySecurePass123!"
+ *             Login with Phone:
+ *               value:
+ *                 phone: "+2348012345678"
+ *                 password: "MySecurePass123!"
  *     responses:
  *       200:
- *         description: Sign-in initiated successfully, OTP request required
+ *         description: User logged in successfully
+ *         headers:
+ *           Set-Cookie:
+ *             schema:
+ *               type: string
+ *               example: "accessToken=eyJhb...; Path=/; HttpOnly; Secure; SameSite=Strict"
+ *             description: accessToken and refreshToken are set as secure HttpOnly cookies
  *         content:
  *           application/json:
  *             schema:
@@ -217,68 +288,102 @@ router.post('/sign-up', userController.signUp);
  *                       id:
  *                         type: string
  *                         format: uuid
- *                         example: "09127216-c1a9-468e-9a96-d712ab67edd9"
- *                         description: The unique identifier of the user
+ *                         example: "44ed85fb-901a-4102-ab00-e814108338dd"
  *                       email:
  *                         type: string
  *                         nullable: true
  *                         example: "uchennadavid2404@gmail.com"
- *                         description: The user's email address
  *                       firstName:
  *                         type: string
  *                         nullable: true
- *                         example: null
- *                         description: The user's first name
+ *                         example: "David"
  *                       lastName:
  *                         type: string
  *                         nullable: true
- *                         example: null
- *                         description: The user's last name
- *                       phone:
+ *                         example: "David"
+ *                       username:
  *                         type: string
+ *                         example: "Davheed"
+ *                       lastActive:
+ *                         type: string
+ *                         format: date-time
  *                         nullable: true
- *                         example: ""
- *                         description: The user's phone number
+ *                         example: "2025-11-15T03:01:47.403Z"
  *                       photo:
  *                         type: string
  *                         nullable: true
- *                         example: null
- *                         description: URL or path to the user's profile photo
  *                       role:
  *                         type: string
  *                         example: "user"
- *                         description: The user's role
+ *                       gender:
+ *                         type: string
+ *                         example: ""
+ *                       dob:
+ *                         type: string
+ *                         example: ""
+ *                       phone:
+ *                         type: string
+ *                         example: ""
  *                       isRegistrationComplete:
  *                         type: boolean
  *                         example: false
- *                         description: Indicates if the user registration is complete
  *                       isSuspended:
  *                         type: boolean
  *                         example: false
- *                         description: Indicates if the user account is suspended
  *                       isDeleted:
  *                         type: boolean
  *                         example: false
- *                         description: Indicates if the user account is deleted
+ *                       referredBy:
+ *                         type: string
+ *                         nullable: true
+ *                       referralCount:
+ *                         type: integer
+ *                         example: 0
  *                       created_at:
  *                         type: string
  *                         format: date-time
- *                         example: "2025-10-05T04:48:50.177Z"
- *                         description: Timestamp when the user account was created
- *                       gender:
- *                         type: string
- *                         example: "male"
- *                         description: The user's gender
- *                       dob:
- *                         type: string
- *                         nullable: true
- *                         example: ""
- *                         description: The user's date of birth
+ *                         example: "2025-11-15T02:53:04.888Z"
  *                 message:
  *                   type: string
- *                   example: "Please request OTP to complete sign in."
+ *                   example: "User logged in successfully"
+ *             example:
+ *               status: "success"
+ *               data:
+ *                 - id: "44ed85fb-901a-4102-ab00-e814108338dd"
+ *                   email: "uchennadavid2404@gmail.com"
+ *                   firstName: "David"
+ *                   lastName: "David"
+ *                   username: "Davheed"
+ *                   lastActive: "2025-11-15T03:01:47.403Z"
+ *                   photo: null
+ *                   role: "user"
+ *                   gender: ""
+ *                   dob: ""
+ *                   phone: ""
+ *                   isRegistrationComplete: false
+ *                   isSuspended: false
+ *                   isDeleted: false
+ *                   referredBy: null
+ *                   referralCount: 0
+ *                   created_at: "2025-11-15T02:53:04.888Z"
+ *               message: "User logged in successfully"
+ *
+ *       400:
+ *         description: Bad Request — Missing email/phone or password
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 message:
+ *                   type: string
+ *                   example: "Either email or phone number and password required"
+ *
  *       401:
- *         description: Unauthorized - Incomplete login data or account is suspended
+ *         description: Unauthorized — Invalid credentials, account suspended, or login blocked
  *         content:
  *           application/json:
  *             schema:
@@ -289,9 +394,22 @@ router.post('/sign-up', userController.signUp);
  *                   example: error
  *                 message:
  *                   type: string
- *                   example: "Incomplete login data"
+ *               examples:
+ *                 invalid_credentials:
+ *                   value:
+ *                     status: "error"
+ *                     message: "Invalid credentials"
+ *                 suspended:
+ *                   value:
+ *                     status: "error"
+ *                     message: "Your account is currently suspended"
+ *                 rate_limited:
+ *                   value:
+ *                     status: "error"
+ *                     message: "login retries exceeded!"
+ *
  *       404:
- *         description: Not Found - User or account not found
+ *         description: Not Found — User does not exist or account deleted
  *         content:
  *           application/json:
  *             schema:
@@ -302,15 +420,22 @@ router.post('/sign-up', userController.signUp);
  *                   example: error
  *                 message:
  *                   type: string
- *                   example: "User not found"
+ *                   examples:
+ *                     not_found:
+ *                       value: { status: "error", message: "User not found" }
+ *                     deleted:
+ *                       value: { status: "error", message: "Account not found" }
  */
 router.post('/sign-in', userController.signIn);
 /**
  * @openapi
  * /user/send-otp:
  *   post:
- *     summary: Send OTP for user verification via email or phone
- *     description: Sends a one-time password (OTP) to the user's email or phone number. Validates the user's existence, checks for account suspension or deletion, and ensures OTP request limits are not exceeded. The OTP is sent via email or SMS based on the provided contact method.
+ *     summary: Resend OTP for login or verification
+ *     description: |
+ *       Triggers a new OTP to be generated and sent to a registered user's email or phone number.
+ *       Used when a user requests to log in, verify their account, or recover access.
+ *       Rate-limited to 5 attempts per hour. Returns success even if OTP is sent — no user data is exposed.
  *     tags:
  *       - User
  *     requestBody:
@@ -322,20 +447,27 @@ router.post('/sign-in', userController.signIn);
  *             properties:
  *               email:
  *                 type: string
- *                 nullable: true
+ *                 format: email
  *                 example: "uchennadavid2404@gmail.com"
- *                 description: The user's email address
+ *                 description: Registered email address
  *               phone:
  *                 type: string
- *                 nullable: true
- *                 example: "08163534417"
- *                 description: The user's phone number
- *             anyOf:
+ *                 example: "+2348012345678"
+ *                 description: Registered phone number in international format
+ *             additionalProperties: false
+ *             oneOf:
  *               - required: [email]
  *               - required: [phone]
+ *           examples:
+ *             Via Email:
+ *               value:
+ *                 email: "uchennadavid2404@gmail.com"
+ *             Via Phone:
+ *               value:
+ *                 phone: "+2348012345678"
  *     responses:
  *       200:
- *         description: OTP sent successfully
+ *         description: OTP successfully sent to user's email or phone
  *         content:
  *           application/json:
  *             schema:
@@ -347,13 +479,16 @@ router.post('/sign-in', userController.signIn);
  *                 data:
  *                   type: null
  *                   example: null
- *                   description: No data returned for this response
  *                 message:
  *                   type: string
  *                   example: "OTP sent. Please verify to continue."
- *                   description: Confirmation message indicating the OTP was sent
+ *             example:
+ *               status: "success"
+ *               data: null
+ *               message: "OTP sent. Please verify to continue."
+ *
  *       400:
- *         description: Bad Request - Missing email or phone number, or no valid contact method
+ *         description: Bad Request — Neither email nor phone provided, or user has no valid contact
  *         content:
  *           application/json:
  *             schema:
@@ -364,9 +499,18 @@ router.post('/sign-in', userController.signIn);
  *                   example: error
  *                 message:
  *                   type: string
- *                   example: "Email or phone number is required"
+ *               examples:
+ *                 missing_contact:
+ *                   value:
+ *                     status: "error"
+ *                     message: "Either email or phone number is required"
+ *                 no_contact_method:
+ *                   value:
+ *                     status: "error"
+ *                     message: "User does not have a valid contact method"
+ *
  *       401:
- *         description: Unauthorized - Account is suspended
+ *         description: Unauthorized — Account is suspended
  *         content:
  *           application/json:
  *             schema:
@@ -378,8 +522,9 @@ router.post('/sign-in', userController.signIn);
  *                 message:
  *                   type: string
  *                   example: "Your account is currently suspended"
+ *
  *       404:
- *         description: Not Found - User or account not found
+ *         description: Not Found — User does not exist or account deleted
  *         content:
  *           application/json:
  *             schema:
@@ -390,9 +535,18 @@ router.post('/sign-in', userController.signIn);
  *                   example: error
  *                 message:
  *                   type: string
- *                   example: "User not found"
+ *               examples:
+ *                 not_found:
+ *                   value:
+ *                     status: "error"
+ *                     message: "User not found"
+ *                 deleted:
+ *                   value:
+ *                     status: "error"
+ *                     message: "Account not found"
+ *
  *       429:
- *         description: Too Many Requests - Exceeded OTP request limit
+ *         description: Too Many Requests — OTP limit exceeded
  *         content:
  *           application/json:
  *             schema:
@@ -404,14 +558,32 @@ router.post('/sign-in', userController.signIn);
  *                 message:
  *                   type: string
  *                   example: "Too many OTP requests. Please try again in an hour."
+ *
+ *       500:
+ *         description: Internal Server Error — Failed to send SMS (email fallback not applicable)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 message:
+ *                   type: string
+ *                   example: "Failed to send OTP via SMS. Please try again."
  */
 router.post('/send-otp', userController.sendOtp);
 /**
  * @openapi
  * /user/verify-otp:
  *   post:
- *     summary: Verify OTP for user authentication via email or phone
- *     description: Verifies the one-time password (OTP) provided by the user to complete the authentication process using either their email or phone number. Validates the user's existence, checks the OTP, and ensures it is not expired. Upon successful verification, clears the OTP, updates user details, generates access and refresh tokens, sets them as cookies, and sends a login notification if applicable.
+ *     summary: Verify OTP and complete login/registration
+ *     description: |
+ *       Validates the 6-digit OTP sent to the user's email or phone.
+ *       On success: clears OTP, resets retry count, updates lastLogin, generates access & refresh tokens,
+ *       sets secure HttpOnly cookies, and returns the user object.
+ *       If registration was incomplete, this step allows the user to proceed to profile completion.
  *     tags:
  *       - User
  *     requestBody:
@@ -423,24 +595,42 @@ router.post('/send-otp', userController.sendOtp);
  *             properties:
  *               email:
  *                 type: string
- *                 nullable: true
+ *                 format: email
  *                 example: "uchennadavid2404@gmail.com"
- *                 description: The user's email address
+ *                 description: Registered email (use if OTP was sent to email)
  *               phone:
  *                 type: string
- *                 nullable: true
- *                 example: ""
- *                 description: The user's phone number
+ *                 example: "+2348012345678"
+ *                 description: Registered phone number (use if OTP was sent to phone)
  *               otp:
  *                 type: string
- *                 example: "123456"
- *                 description: The one-time password sent to the user
- *             anyOf:
- *               - required: [email, otp]
- *               - required: [phone, otp]
+ *                 pattern: ^\d{6}$
+ *                 example: "222222"
+ *                 description: The 6-digit OTP received by the user
+ *             required:
+ *               - otp
+ *             oneOf:
+ *               - required: [email]
+ *               - required: [phone]
+ *             additionalProperties: false
+ *           examples:
+ *             Verify with Email:
+ *               value:
+ *                 email: "uchennadavid2404@gmail.com"
+ *                 otp: "222222"
+ *             Verify with Phone:
+ *               value:
+ *                 phone: "+2348012345678"
+ *                 otp: "222222"
  *     responses:
  *       200:
- *         description: OTP verified successfully, tokens generated
+ *         description: OTP verified successfully — user is now logged in
+ *         headers:
+ *           Set-Cookie:
+ *             schema:
+ *               type: string
+ *               example: "accessToken=eyJhb...; Path=/; HttpOnly; Secure; SameSite=Strict"
+ *             description: accessToken and refreshToken are set as HttpOnly cookies
  *         content:
  *           application/json:
  *             schema:
@@ -457,78 +647,87 @@ router.post('/send-otp', userController.sendOtp);
  *                       id:
  *                         type: string
  *                         format: uuid
- *                         example: "09127216-c1a9-468e-9a96-d712ab67edd9"
- *                         description: The unique identifier of the user
+ *                         example: "44ed85fb-901a-4102-ab00-e814108338dd"
  *                       email:
  *                         type: string
  *                         nullable: true
  *                         example: "uchennadavid2404@gmail.com"
- *                         description: The user's email address
  *                       firstName:
  *                         type: string
  *                         nullable: true
  *                         example: null
- *                         description: The user's first name
  *                       lastName:
  *                         type: string
  *                         nullable: true
  *                         example: null
- *                         description: The user's last name
- *                       phone:
+ *                       username:
  *                         type: string
- *                         nullable: true
  *                         example: ""
- *                         description: The user's phone number
+ *                       lastActive:
+ *                         type: string
+ *                         format: date-time
+ *                         nullable: true
  *                       photo:
  *                         type: string
  *                         nullable: true
- *                         example: null
- *                         description: URL or path to the user's profile photo
  *                       role:
  *                         type: string
  *                         example: "user"
- *                         description: The user's role
+ *                       gender:
+ *                         type: string
+ *                         example: ""
+ *                       dob:
+ *                         type: string
+ *                         example: ""
+ *                       phone:
+ *                         type: string
+ *                         example: ""
  *                       isRegistrationComplete:
  *                         type: boolean
  *                         example: false
- *                         description: Indicates if the user registration is complete
  *                       isSuspended:
  *                         type: boolean
  *                         example: false
- *                         description: Indicates if the user account is suspended
  *                       isDeleted:
  *                         type: boolean
  *                         example: false
- *                         description: Indicates if the user account is deleted
+ *                       referredBy:
+ *                         type: string
+ *                         nullable: true
+ *                       referralCount:
+ *                         type: integer
+ *                         example: 0
  *                       created_at:
  *                         type: string
  *                         format: date-time
- *                         example: "2025-10-05T04:48:50.177Z"
- *                         description: Timestamp when the user account was created
- *                       gender:
- *                         type: string
- *                         example: "male"
- *                         description: The user's gender
- *                       dob:
- *                         type: string
- *                         nullable: true
- *                         example: ""
- *                         description: The user's date of birth
+ *                         example: "2025-11-15T02:53:04.888Z"
  *                 message:
  *                   type: string
  *                   example: "OTP verified successfully"
- *         headers:
- *           Set-Cookie:
- *             schema:
- *               type: array
- *               items:
- *                 type: string
- *                 example:
- *                   - "accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...; Path=/; HttpOnly"
- *                   - "refreshToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...; Path=/; HttpOnly"
- *               description: Sets the access and refresh tokens as cookies
+ *             example:
+ *               status: "success"
+ *               data:
+ *                 - id: "44ed85fb-901a-4102-ab00-e814108338dd"
+ *                   email: "uchennadavid2404@gmail.com"
+ *                   firstName: null
+ *                   lastName: null
+ *                   username: ""
+ *                   lastActive: null
+ *                   photo: null
+ *                   role: "user"
+ *                   gender: ""
+ *                   dob: ""
+ *                   phone: ""
+ *                   isRegistrationComplete: false
+ *                   isSuspended: false
+ *                   isDeleted: false
+ *                   referredBy: null
+ *                   referralCount: 0
+ *                   created_at: "2025-11-15T02:53:04.888Z"
+ *               message: "OTP verified successfully"
+ *
  *       400:
- *         description: Bad Request - Missing email/phone or OTP
+ *         description: Bad Request — Missing email/phone or OTP
  *         content:
  *           application/json:
  *             schema:
@@ -540,8 +739,9 @@ router.post('/send-otp', userController.sendOtp);
  *                 message:
  *                   type: string
  *                   example: "Email or phone number and OTP are required"
+ *
  *       401:
- *         description: Unauthorized - Invalid or expired OTP
+ *         description: Unauthorized — Invalid or expired OTP
  *         content:
  *           application/json:
  *             schema:
@@ -553,8 +753,9 @@ router.post('/send-otp', userController.sendOtp);
  *                 message:
  *                   type: string
  *                   example: "Invalid or expired OTP"
+ *
  *       404:
- *         description: Not Found - User not found
+ *         description: Not Found — User does not exist
  *         content:
  *           application/json:
  *             schema:
@@ -566,8 +767,9 @@ router.post('/send-otp', userController.sendOtp);
  *                 message:
  *                   type: string
  *                   example: "User not found"
+ *
  *       500:
- *         description: Internal Server Error - Failed to retrieve updated user
+ *         description: Internal Server Error — Failed to update user after verification
  *         content:
  *           application/json:
  *             schema:
@@ -581,19 +783,268 @@ router.post('/send-otp', userController.sendOtp);
  *                   example: "Failed to retrieve updated user"
  */
 router.post('/verify-otp', userController.verifyOtp);
+/**
+ * @openapi
+ * /user/forgot-password:
+ *   post:
+ *     summary: Request password reset link
+ *     description: |
+ *       Initiates the password reset flow by sending a secure, time-limited reset link to the user's registered email.
+ *
+ *       Security features:
+ *       • Rate-limited: After 6 requests, the account is automatically **suspended**
+ *       • Reset token expires in **15 minutes**
+ *       • Token is cryptographically signed and never exposed in plain text
+ *       • Link is sent via email only (no leakage in response)
+ *
+ *       Even if the email doesn't exist, no information is disclosed (security best practice).
+ *     tags:
+ *       - User
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: "uchennadavid2404@gmail.com"
+ *                 description: The email address associated with the user account
+ *             required:
+ *               - email
+ *             additionalProperties: false
+ *           example:
+ *             email: "uchennadavid2404@gmail.com"
+ *     responses:
+ *       200:
+ *         description: Password reset link sent successfully (even if email doesn't exist — no info leak)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: null
+ *                   example: null
+ *                 message:
+ *                   type: string
+ *                   example: "Password reset link sent to uchennadavid2404@gmail.com"
+ *             example:
+ *               status: "success"
+ *               data: null
+ *               message: "Password reset link sent to uchennadavid2404@gmail.com"
+ *
+ *       400:
+ *         description: Bad Request — Email not provided
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 message:
+ *                   type: string
+ *                   example: "Email is required"
+ *
+ *       401:
+ *         description: Unauthorized — Too many reset attempts → account automatically suspended
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 message:
+ *                   type: string
+ *                   example: "Password reset retries exceeded! and account suspended"
+ *
+ *       404:
+ *         description: Not Found — No user with provided email (still returns 200 in production for security, but documented here for clarity)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 message:
+ *                   type: string
+ *                   example: "No user found with provided email"
+ *             # Note: In production, this should return 200 with generic message to prevent email enumeration
+ */
+router.post('/forgot-password', userController.forgotPassword);
+/**
+ * @openapi
+ * /user/reset-password:
+ *   post:
+ *     summary: Reset password using token from email
+ *     description: |
+ *       Completes the password reset flow by validating a signed reset token and updating the user's password.
+ *
+ *       Security features:
+ *       • Token must be valid, signed, and not expired (15-minute window from forgot-password)
+ *       • New password cannot be the same as the current one
+ *       • On success: clears reset token, resets retry counters, updates `passwordChangedAt`
+ *       • Sends confirmation email to user
+ *
+ *       This endpoint is **public** — no authentication required (uses token-based validation).
+ *     tags:
+ *       - User
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.xxxxx..."
+ *                 description: The signed password reset token received via email
+ *               password:
+ *                 type: string
+ *                 minLength: 8
+ *                 example: "MyNewSecurePass123!"
+ *                 description: New desired password
+ *               confirmPassword:
+ *                 type: string
+ *                 minLength: 8
+ *                 example: "MyNewSecurePass123!"
+ *                 description: Must exactly match the new password
+ *             required:
+ *               - token
+ *               - password
+ *               - confirmPassword
+ *             additionalProperties: false
+ *           example:
+ *             token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.xxxxx..."
+ *             password: "MyNewSecurePass123!"
+ *             confirmPassword: "MyNewSecurePass123!"
+ *     responses:
+ *       200:
+ *         description: Password reset successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: null
+ *                   example: null
+ *                 message:
+ *                   type: string
+ *                   example: "Password reset successfully"
+ *             example:
+ *               status: "success"
+ *               data: null
+ *               message: "Password reset successfully"
+ *
+ *       400:
+ *         description: Bad Request — Token expired/invalid, or password reuse
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 message:
+ *                   type: string
+ *               examples:
+ *                 token_invalid:
+ *                   value:
+ *                     status: "error"
+ *                     message: "Password reset token is invalid or has expired"
+ *                 same_password:
+ *                   value:
+ *                     status: "error"
+ *                     message: "New password cannot be the same as the old password"
+ *                 reset_failed:
+ *                   value:
+ *                     status: "error"
+ *                     message: "Password reset failed"
+ *
+ *       401:
+ *         description: Unauthorized — Token signature invalid or malformed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 message:
+ *                   type: string
+ *                   example: "Invalid token"
+ *
+ *       403:
+ *         description: Forbidden — Missing fields or passwords don't match
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 message:
+ *                   type: string
+ *               examples:
+ *                 missing_fields:
+ *                   value:
+ *                     status: "error"
+ *                     message: "All fields are required"
+ *                 mismatch:
+ *                   value:
+ *                     status: "error"
+ *                     message: "Passwords do not match"
+ */
+router.post('/reset-password', userController.resetPassword);
 
 router.use(protect);
 /**
  * @openapi
  * /user/sign-out:
  *   post:
- *     summary: Sign out a user
- *     description: Logs out the currently authenticated user by invalidating their token family (if a refresh token is provided) and clearing access and refresh token cookies. Requires the user to be authenticated.
+ *     summary: Sign out and revoke session
+ *     description: |
+ *       Logs out the currently authenticated user by:
+ *       • Invalidating the entire refresh token family (revokes all related sessions)
+ *       • Clearing both `accessToken` and `refreshToken` cookies (with immediate expiration)
+ *       • Returning a clean success response
+ *
+ *       This ensures complete session termination across all devices if a refresh token is present.
+ *       Requires a valid authenticated session.
  *     tags:
  *       - User
+ *     security:
+ *       - cookieAuth: []
  *     responses:
  *       200:
- *         description: Logout successful
+ *         description: Successfully logged out — all sessions revoked where applicable
+ *         headers:
+ *           Set-Cookie:
+ *             schema:
+ *               type: string
+ *               example: |
+ *                 accessToken=expired; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; Secure; SameSite=Strict
+ *                 refreshToken=expired; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; Secure; SameSite=Strict
+ *             description: Both tokens are cleared by setting expired cookies
  *         content:
  *           application/json:
  *             schema:
@@ -605,23 +1056,16 @@ router.use(protect);
  *                 data:
  *                   type: null
  *                   example: null
- *                   description: No data returned for this response
  *                 message:
  *                   type: string
  *                   example: "Logout successful"
- *                   description: Confirmation message indicating successful logout
- *         headers:
- *           Set-Cookie:
- *             schema:
- *               type: array
- *               items:
- *                 type: string
- *                 example:
- *                   - "accessToken=expired; Path=/; HttpOnly; Max-Age=-1"
- *                   - "refreshToken=expired; Path=/; HttpOnly; Max-Age=-1"
- *               description: Clears the access and refresh tokens by setting expired cookies
+ *             example:
+ *               status: "success"
+ *               data: null
+ *               message: "Logout successful"
+ *
  *       401:
- *         description: Unauthorized - User is not logged in
+ *         description: Unauthorized — No active session (user not logged in)
  *         content:
  *           application/json:
  *             schema:
@@ -633,19 +1077,41 @@ router.use(protect);
  *                 message:
  *                   type: string
  *                   example: "You are not logged in"
+ *             example:
+ *               status: "error"
+ *               message: "You are not logged in"
  */
 router.post('/sign-out', userController.signOut);
 /**
  * @openapi
  * /user/sign-out-all:
  *   post:
- *     summary: Sign out user from all devices
- *     description: Logs out the currently authenticated user from all devices by invalidating all token families associated with the user and clearing access and refresh token cookies. Requires the user to be authenticated.
+ *     summary: Log out from all devices (global sign-out)
+ *     description: |
+ *       Immediately terminates **all active sessions** of the authenticated user across every device and browser.
+ *
+ *       Actions performed:
+ *       • Invalidates **all refresh token families** belonging to the user (revokes every active session)
+ *       • Clears `accessToken` and `refreshToken` cookies on the current device
+ *       • Ensures the user is fully logged out everywhere
+ *
+ *       Ideal for "Sign out from all devices" feature after a security concern or password change.
+ *       Requires a valid authenticated session.
  *     tags:
  *       - User
+ *     security:
+ *       - cookieAuth: []
  *     responses:
  *       200:
- *         description: Logout from all devices successful
+ *         description: Successfully logged out from all devices and sessions revoked globally
+ *         headers:
+ *           Set-Cookie:
+ *             schema:
+ *               type: string
+ *               example: |
+ *                 accessToken=expired; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; Secure; SameSite=Strict
+ *                 refreshToken=expired; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; Secure; SameSite=Strict
+ *             description: Cookies are cleared on the current device by setting expired values
  *         content:
  *           application/json:
  *             schema:
@@ -657,23 +1123,16 @@ router.post('/sign-out', userController.signOut);
  *                 data:
  *                   type: null
  *                   example: null
- *                   description: No data returned for this response
  *                 message:
  *                   type: string
- *                   example: "Logout from all devices successful"
- *                   description: Confirmation message indicating successful logout from all devices
- *         headers:
- *           Set-Cookie:
- *             schema:
- *               type: array
- *               items:
- *                 type: string
- *                 example:
- *                   - "accessToken=expired; Path=/; HttpOnly; Max-Age=-1"
- *                   - "refreshToken=expired; Path=/; HttpOnly; Max-Age=-1"
- *               description: Clears the access and refresh tokens by setting expired cookies
+ *                   example: "Logout successful"
+ *             example:
+ *               status: "success"
+ *               data: null
+ *               message: "Logout successful"
+ *
  *       401:
- *         description: Unauthorized - User is not logged in
+ *         description: Unauthorized — No active session (user not logged in)
  *         content:
  *           application/json:
  *             schema:
@@ -685,19 +1144,27 @@ router.post('/sign-out', userController.signOut);
  *                 message:
  *                   type: string
  *                   example: "You are not logged in"
+ *             example:
+ *               status: "error"
+ *               message: "You are not logged in"
  */
 router.post('/sign-out-all', userController.signOutFromAllDevices);
 /**
  * @openapi
  * /user/profile:
  *   get:
- *     summary: Retrieve user profile
- *     description: Retrieves the profile information of the currently authenticated user. The endpoint validates the user's authentication, checks if the user exists in the database, and returns their profile details.
+ *     summary: Get authenticated user's profile
+ *     description: |
+ *       Retrieves the complete profile of the currently logged-in user.
+ *       Requires a valid authenticated session (access token in cookie).
+ *       Returns all user fields including registration status, referral info, and activity timestamps.
  *     tags:
  *       - User
+ *     security:
+ *       - cookieAuth: []
  *     responses:
  *       200:
- *         description: Profile retrieved successfully
+ *         description: User's profile retrieved successfully
  *         content:
  *           application/json:
  *             schema:
@@ -714,59 +1181,90 @@ router.post('/sign-out-all', userController.signOutFromAllDevices);
  *                       id:
  *                         type: string
  *                         format: uuid
- *                         example: "3515368b-1c83-4fcf-b301-7db17bb7d0de"
- *                         description: The unique identifier of the user
+ *                         example: "44ed85fb-901a-4102-ab00-e814108338dd"
  *                       email:
  *                         type: string
  *                         nullable: true
  *                         example: "uchennadavid2404@gmail.com"
- *                         description: The user's email address
- *                       phone:
- *                         type: string
- *                         nullable: true
- *                         example: "08163534417"
- *                         description: The user's phone number
  *                       firstName:
  *                         type: string
  *                         nullable: true
  *                         example: "David"
- *                         description: The user's first name
  *                       lastName:
  *                         type: string
  *                         nullable: true
  *                         example: "David"
- *                         description: The user's last name
+ *                       username:
+ *                         type: string
+ *                         example: "Davheed"
+ *                       lastActive:
+ *                         type: string
+ *                         format: date-time
+ *                         nullable: true
+ *                         example: "2025-11-15T03:13:19.260Z"
  *                       photo:
  *                         type: string
  *                         nullable: true
  *                         example: null
- *                         description: URL or path to the user's profile photo
  *                       role:
  *                         type: string
  *                         example: "user"
- *                         description: The user's role
+ *                       gender:
+ *                         type: string
+ *                         example: ""
+ *                       dob:
+ *                         type: string
+ *                         example: ""
+ *                       phone:
+ *                         type: string
+ *                         example: ""
+ *                       isRegistrationComplete:
+ *                         type: boolean
+ *                         example: false
  *                       isSuspended:
  *                         type: boolean
  *                         example: false
- *                         description: Indicates if the user account is suspended
  *                       isDeleted:
  *                         type: boolean
  *                         example: false
- *                         description: Indicates if the user account is deleted
+ *                       referredBy:
+ *                         type: string
+ *                         nullable: true
+ *                         example: null
+ *                       referralCount:
+ *                         type: integer
+ *                         example: 0
  *                       created_at:
  *                         type: string
  *                         format: date-time
- *                         example: "2025-09-23T03:25:40.189Z"
- *                         description: Timestamp when the user account was created
- *                       isRegistrationComplete:
- *                         type: boolean
- *                         example: true
- *                         description: Indicates if the user registration is complete
+ *                         example: "2025-11-15T02:53:04.888Z"
  *                 message:
  *                   type: string
  *                   example: "Profile retrieved successfully"
+ *             example:
+ *               status: "success"
+ *               data:
+ *                 - id: "44ed85fb-901a-4102-ab00-e814108338dd"
+ *                   email: "uchennadavid2404@gmail.com"
+ *                   firstName: "David"
+ *                   lastName: "David"
+ *                   username: "Davheed"
+ *                   lastActive: "2025-11-15T03:13:19.260Z"
+ *                   photo: null
+ *                   role: "user"
+ *                   gender: ""
+ *                   dob: ""
+ *                   phone: ""
+ *                   isRegistrationComplete: false
+ *                   isSuspended: false
+ *                   isDeleted: false
+ *                   referredBy: null
+ *                   referralCount: 0
+ *                   created_at: "2025-11-15T02:53:04.888Z"
+ *               message: "Profile retrieved successfully"
+ *
  *       400:
- *         description: Bad Request - User not logged in
+ *         description: Bad Request — No active session (token missing or invalid)
  *         content:
  *           application/json:
  *             schema:
@@ -778,8 +1276,9 @@ router.post('/sign-out-all', userController.signOutFromAllDevices);
  *                 message:
  *                   type: string
  *                   example: "Please log in again"
+ *
  *       404:
- *         description: Not Found - User does not exist
+ *         description: Not Found — User no longer exists in database
  *         content:
  *           application/json:
  *             schema:
@@ -797,42 +1296,69 @@ router.get('/profile', userController.getProfile);
  * @openapi
  * /user/update:
  *   post:
- *     summary: Update authenticated user details
- *     description: Updates the details of the currently authenticated user, including email, first name, last name, date of birth, and phone number. Validates user authentication, checks for account suspension or deletion, and ensures the updated email or phone number does not already exist for another user. Updates the registration completion status if all required fields are provided.
+ *     summary: Update user profile & complete registration
+ *     description: |
+ *       Allows an authenticated user to update personal details such as name, username, email, phone, gender, date of birth, password, and apply a referral code.
+ *       If all required fields are filled after the update, `isRegistrationComplete` becomes `true`, a wallet is created, referral codes are generated, and a welcome email is sent.
+ *       This endpoint is protected — requires valid access token (user must be authenticated).
  *     tags:
  *       - User
+ *     security:
+ *       - cookieAuth: []
  *     requestBody:
- *       required: false
+ *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
  *             properties:
- *               email:
- *                 type: string
- *                 nullable: true
- *                 example: "uchennadavid2404@gmail.com"
- *                 description: The user's email address
  *               firstName:
  *                 type: string
- *                 nullable: true
- *                 example: "Dave"
- *                 description: The user's first name
+ *                 example: "David"
+ *                 description: User's first name
  *               lastName:
  *                 type: string
- *                 nullable: true
  *                 example: "David"
- *                 description: The user's last name
- *               dob:
+ *                 description: User's last name
+ *               username:
  *                 type: string
- *                 nullable: true
- *                 example: "2000-01-01"
- *                 description: The user's date of birth
+ *                 example: "Davheed"
+ *                 description: Unique username (case-sensitive)
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: "uchennadavid2404@gmail.com"
+ *                 description: Updated email (must not be taken by another user)
  *               phone:
  *                 type: string
- *                 nullable: true
- *                 example: ""
- *                 description: The user's phone number
+ *                 example: "+2348012345678"
+ *                 description: Updated phone number in international format
+ *               gender:
+ *                 type: string
+ *                 enum: [male, female, other, ""]
+ *                 example: "male"
+ *               dob:
+ *                 type: string
+ *                 format: date
+ *                 example: "1995-06-15"
+ *                 description: Date of birth in YYYY-MM-DD format
+ *               password:
+ *                 type: string
+ *                 minLength: 8
+ *                 example: "MySecurePass123!"
+ *                 description: New password (will be hashed)
+ *               referralCode:
+ *                 type: string
+ *                 example: "REF2025ABC"
+ *                 description: Optional referral code from another user
+ *             additionalProperties: false
+ *           example:
+ *             firstName: "David"
+ *             lastName: "David"
+ *             username: "Davheed"
+ *             gender: "male"
+ *             dob: "1995-06-15"
+ *             referralCode: "REF2025ABC"
  *     responses:
  *       200:
  *         description: Profile updated successfully
@@ -852,68 +1378,102 @@ router.get('/profile', userController.getProfile);
  *                       id:
  *                         type: string
  *                         format: uuid
- *                         example: "09127216-c1a9-468e-9a96-d712ab67edd9"
- *                         description: The unique identifier of the user
+ *                         example: "44ed85fb-901a-4102-ab00-e814108338dd"
  *                       email:
  *                         type: string
  *                         nullable: true
  *                         example: "uchennadavid2404@gmail.com"
- *                         description: The user's email address
  *                       firstName:
  *                         type: string
  *                         nullable: true
- *                         example: "Dave"
- *                         description: The user's first name
+ *                         example: "David"
  *                       lastName:
  *                         type: string
  *                         nullable: true
  *                         example: "David"
- *                         description: The user's last name
+ *                       username:
+ *                         type: string
+ *                         example: "Davheed"
+ *                       lastActive:
+ *                         type: string
+ *                         format: date-time
+ *                         example: "2025-11-15T03:01:47.403Z"
  *                       photo:
  *                         type: string
  *                         nullable: true
- *                         example: null
- *                         description: URL or path to the user's profile photo
  *                       role:
  *                         type: string
  *                         example: "user"
- *                         description: The user's role
- *                       isRegistrationComplete:
- *                         type: boolean
- *                         example: false
- *                         description: Indicates if the user registration is complete
- *                       isSuspended:
- *                         type: boolean
- *                         example: false
- *                         description: Indicates if the user account is suspended
- *                       isDeleted:
- *                         type: boolean
- *                         example: false
- *                         description: Indicates if the user account is deleted
- *                       created_at:
- *                         type: string
- *                         format: date-time
- *                         example: "2025-10-05T04:48:50.177Z"
- *                         description: Timestamp when the user account was created
  *                       gender:
  *                         type: string
  *                         example: "male"
- *                         description: The user's gender
  *                       dob:
  *                         type: string
- *                         nullable: true
- *                         example: "2000-01-01"
- *                         description: The user's date of birth
+ *                         example: "1995-06-15"
  *                       phone:
  *                         type: string
+ *                         example: "+2348012345678"
+ *                       isRegistrationComplete:
+ *                         type: boolean
+ *                         example: true
+ *                       isSuspended:
+ *                         type: boolean
+ *                         example: false
+ *                       isDeleted:
+ *                         type: boolean
+ *                         example: false
+ *                       referredBy:
+ *                         type: string
  *                         nullable: true
- *                         example: ""
- *                         description: The user's phone number
+ *                         example: "a1b2c3d4-..."
+ *                       referralCount:
+ *                         type: integer
+ *                         example: 0
+ *                       created_at:
+ *                         type: string
+ *                         format: date-time
+ *                         example: "2025-11-15T02:53:04.888Z"
  *                 message:
  *                   type: string
  *                   example: "Profile updated successfully"
+ *             example:
+ *               status: "success"
+ *               data:
+ *                 - id: "44ed85fb-901a-4102-ab00-e814108338dd"
+ *                   email: "uchennadavid2404@gmail.com"
+ *                   firstName: "David"
+ *                   lastName: "David"
+ *                   username: "Davheed"
+ *                   lastActive: "2025-11-15T03:01:47.403Z"
+ *                   photo: null
+ *                   role: "user"
+ *                   gender: "male"
+ *                   dob: "1995-06-15"
+ *                   phone: ""
+ *                   isRegistrationComplete: true
+ *                   isSuspended: false
+ *                   isDeleted: false
+ *                   referredBy: "a1b2c3d4-e5f6-7890-g1h2-i3j4k5l6m7n8"
+ *                   referralCount: 0
+ *                   created_at: "2025-11-15T02:53:04.888Z"
+ *               message: "Profile updated successfully"
+ *
+ *       400:
+ *         description: Bad Request — Invalid referral code
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 message:
+ *                   type: string
+ *                   example: "Invalid referral code"
+ *
  *       401:
- *         description: Unauthorized - Account is suspended
+ *         description: Unauthorized — Account is suspended
  *         content:
  *           application/json:
  *             schema:
@@ -925,8 +1485,9 @@ router.get('/profile', userController.getProfile);
  *                 message:
  *                   type: string
  *                   example: "Your account is currently suspended"
+ *
  *       404:
- *         description: Not Found - User or account not found
+ *         description: Not Found — User not found or deleted
  *         content:
  *           application/json:
  *             schema:
@@ -937,9 +1498,14 @@ router.get('/profile', userController.getProfile);
  *                   example: error
  *                 message:
  *                   type: string
- *                   example: "User not found"
+ *                   examples:
+ *                     not_found:
+ *                       value: { status: "error", message: "User not found" }
+ *                     deleted:
+ *                       value: { status: "error", message: "Account not found" }
+ *
  *       409:
- *         description: Conflict - User with the provided email or phone number already exists
+ *         description: Conflict — Email, phone, or username already taken by another user
  *         content:
  *           application/json:
  *             schema:
@@ -950,9 +1516,16 @@ router.get('/profile', userController.getProfile);
  *                   example: error
  *                 message:
  *                   type: string
- *                   example: "User with this email already exists"
+ *                   examples:
+ *                     email:
+ *                       value: { status: "error", message: "User with this email already exists" }
+ *                     phone:
+ *                       value: { status: "error", message: "User with this phone number already exists" }
+ *                     username:
+ *                       value: { status: "error", message: "User with this username already exists" }
+ *
  *       500:
- *         description: Internal Server Error - Failed to update or retrieve user details
+ *         description: Internal Server Error — Failed to update user or create wallet/referral
  *         content:
  *           application/json:
  *             schema:
@@ -968,242 +1541,28 @@ router.get('/profile', userController.getProfile);
 router.post('/update', userController.updateUserDetails);
 /**
  * @openapi
- * /user/friends-wishlists:
- *   get:
- *     summary: Retrieve wishlists of friends
- *     description: Fetches a list of wishlists belonging to the authenticated user's friends, including friend details and up to three top items per wishlist. Wishlists are sorted by celebration date (upcoming first). Requires user authentication.
- *     tags:
- *       - Friends
- *       - Wishlist
- *     responses:
- *       200:
- *         description: Friends wishlists retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 data:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       friendId:
- *                         type: string
- *                         format: uuid
- *                         example: "09127216-c1a9-468e-9a96-d712ab67edd9"
- *                         description: The unique identifier of the friend
- *                       friendName:
- *                         type: string
- *                         example: "Dave David"
- *                         description: The full name of the friend
- *                       friendInitials:
- *                         type: string
- *                         example: "DD"
- *                         description: The initials of the friend
- *                       isOnline:
- *                         type: boolean
- *                         example: false
- *                         description: Indicates if the friend is currently online
- *                       lastActive:
- *                         type: string
- *                         format: date-time
- *                         example: "2025-10-13T09:44:40.953Z"
- *                         description: Timestamp of the friend's last activity
- *                       wishlist:
- *                         type: object
- *                         properties:
- *                           id:
- *                             type: string
- *                             format: uuid
- *                             example: "a2f42667-ba47-42e2-a3bb-57403a9132be"
- *                             description: The unique identifier of the wishlist
- *                           celebrationEvent:
- *                             type: string
- *                             example: "Birthday"
- *                             description: The event associated with the wishlist
- *                           celebrationDate:
- *                             type: string
- *                             format: date-time
- *                             example: "2025-10-31T23:00:00.000Z"
- *                             description: The date of the celebration
- *                           itemsCount:
- *                             type: integer
- *                             nullable: true
- *                             example: null
- *                             description: The total number of items in the wishlist
- *                           totalValue:
- *                             type: number
- *                             example: 0
- *                             description: The total value of the wishlist items
- *                           topItems:
- *                             type: array
- *                             items:
- *                               type: object
- *                               properties:
- *                                 id:
- *                                   type: string
- *                                   format: uuid
- *                                   example: "fe66ca27-9b5d-4d94-8008-3db8e1e810fe"
- *                                   description: The unique identifier of the wishlist item
- *                                 name:
- *                                   type: string
- *                                   example: "Casual Denim Jacket"
- *                                   description: The name of the wishlist item
- *                                 imageUrl:
- *                                   type: string
- *                                   nullable: true
- *                                   example: "https://i.guim.co.uk/img/media/18badfc0b64b09f917fd14bbe47d73fd92feeb27/189_335_5080_3048/master/5080.jpg?width=1200&height=1200&quality=85&auto=format&fit=crop&s=1562112c7a64da36ae0a5e75075a0d12"
- *                                   description: The URL of the wishlist item's image
- *                           uniqueLink:
- *                             type: string
- *                             example: "https://joygiver.co/birthday-WBNmhb"
- *                             description: The unique URL for accessing the wishlist
- *                 message:
- *                   type: string
- *                   example: "Friends wishlists retrieved successfully"
- *       401:
- *         description: Unauthorized - User not logged in
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: error
- *                 message:
- *                   type: string
- *                   example: "Please log in"
- */
-router.get('/friends-wishlists', friendsController.getFriendsWishlists);
-/**
- * @openapi
- * /user/friends:
- *   get:
- *     summary: Retrieve user's friends list
- *     description: Fetches a paginated list of the authenticated user's friends, including their details and wishlist information. Supports pagination through query parameters for page and limit. Requires user authentication.
- *     tags:
- *       - Friends
- *     parameters:
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *           example: 1
- *           default: 1
- *         description: The page number for pagination
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           example: 50
- *           default: 50
- *         description: The number of friends to return per page
- *     responses:
- *       200:
- *         description: Friends list retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 data:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       totalFriends:
- *                         type: integer
- *                         example: 1
- *                         description: The total number of friends
- *                       friends:
- *                         type: array
- *                         items:
- *                           type: object
- *                           properties:
- *                             id:
- *                               type: string
- *                               format: uuid
- *                               example: "09127216-c1a9-468e-9a96-d712ab67edd9"
- *                               description: The unique identifier of the friend
- *                             name:
- *                               type: string
- *                               example: "Dave David"
- *                               description: The full name of the friend
- *                             email:
- *                               type: string
- *                               format: email
- *                               example: "uchennadavid2404@gmail.com"
- *                               description: The email address of the friend
- *                             initials:
- *                               type: string
- *                               example: "DD"
- *                               description: The initials of the friend
- *                             hasActiveWishlist:
- *                               type: boolean
- *                               example: true
- *                               description: Indicates if the friend has at least one active wishlist
- *                             wishlistCount:
- *                               type: integer
- *                               example: 3
- *                               description: The total number of wishlists the friend has
- *                             friendSince:
- *                               type: string
- *                               format: date-time
- *                               example: "2025-10-13T09:27:46.670Z"
- *                               description: Timestamp when the friendship was established
- *                       pagination:
- *                         type: object
- *                         properties:
- *                           page:
- *                             type: integer
- *                             example: 1
- *                             description: The current page number
- *                           limit:
- *                             type: integer
- *                             example: 50
- *                             description: The number of friends per page
- *                           total:
- *                             type: integer
- *                             example: 1
- *                             description: The total number of friends
- *                           totalPages:
- *                             type: integer
- *                             example: 1
- *                             description: The total number of pages
- *                 message:
- *                   type: string
- *                   example: "Friends list retrieved successfully"
- *       401:
- *         description: Unauthorized - User not logged in
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: error
- *                 message:
- *                   type: string
- *                   example: "Please log in"
- */
-router.get('/friends', friendsController.getFriendsList);
-/**
- * @openapi
- * /user/add-friend:
+ * /user/change-password:
  *   post:
- *     summary: Add a friend
- *     description: Adds a friend to the authenticated user's friend list using either the friend's email or referral code. Prevents adding oneself or an existing friend. Requires user authentication.
+ *     summary: Change authenticated user's password
+ *     description: |
+ *       Allows a logged-in user to update their current password.
+ *       Validates that:
+ *       • Both password fields are provided
+ *       • New passwords match
+ *       • New password is different from the current one
+ *
+ *       On success:
+ *       • Hashes and saves the new password
+ *       • Resets password-related retry counters and tokens
+ *       • Updates `passwordChangedAt` timestamp
+ *       • Sends a confirmation email
+ *       • Returns success response with no sensitive data
+ *
+ *       Requires valid authentication (active session).
  *     tags:
- *       - Friends
+ *       - User
+ *     security:
+ *       - cookieAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -1211,15 +1570,26 @@ router.get('/friends', friendsController.getFriendsList);
  *           schema:
  *             type: object
  *             properties:
- *               identifier:
+ *               password:
  *                 type: string
- *                 example: "uchennadavid2404@gmail.com"
- *                 description: The email address or referral code of the user to add as a friend
+ *                 minLength: 8
+ *                 example: "NewStrongPass123!"
+ *                 description: New desired password
+ *               confirmPassword:
+ *                 type: string
+ *                 minLength: 8
+ *                 example: "NewStrongPass123!"
+ *                 description: Must exactly match the new password
  *             required:
- *               - identifier
+ *               - password
+ *               - confirmPassword
+ *             additionalProperties: false
+ *           example:
+ *             password: "NewStrongPass123!"
+ *             confirmPassword: "NewStrongPass123!"
  *     responses:
- *       201:
- *         description: Friend added successfully
+ *       200:
+ *         description: Password changed successfully
  *         content:
  *           application/json:
  *             schema:
@@ -1231,12 +1601,16 @@ router.get('/friends', friendsController.getFriendsList);
  *                 data:
  *                   type: null
  *                   example: null
- *                   description: No data returned for this response
  *                 message:
  *                   type: string
- *                   example: "Friend added successfully"
+ *                   example: "Password reset successfully"
+ *             example:
+ *               status: "success"
+ *               data: null
+ *               message: "Password reset successfully"
+ *
  *       400:
- *         description: Bad Request - Missing identifier, attempting to add self, or already friends
+ *         description: Bad Request — Validation or business logic failure
  *         content:
  *           application/json:
  *             schema:
@@ -1247,9 +1621,26 @@ router.get('/friends', friendsController.getFriendsList);
  *                   example: error
  *                 message:
  *                   type: string
- *                   example: "Email or referral code is required"
+ *               examples:
+ *                 missing_fields:
+ *                   value:
+ *                     status: "error"
+ *                     message: "Password and confirm password are required"
+ *                 same_as_old:
+ *                   value:
+ *                     status: "error"
+ *                     message: "New password cannot be the same as the old password"
+ *                 user_not_found:
+ *                   value:
+ *                     status: "error"
+ *                     message: "User not found"
+ *                 reset_failed:
+ *                   value:
+ *                     status: "error"
+ *                     message: "Password reset failed"
+ *
  *       401:
- *         description: Unauthorized - User not logged in
+ *         description: Unauthorized — User not logged in
  *         content:
  *           application/json:
  *             schema:
@@ -1260,9 +1651,10 @@ router.get('/friends', friendsController.getFriendsList);
  *                   example: error
  *                 message:
  *                   type: string
- *                   example: "Please log in"
- *       404:
- *         description: Not Found - User or referral code not found
+ *                   example: "You are not logged in"
+ *
+ *       403:
+ *         description: Forbidden — Password validation failed
  *         content:
  *           application/json:
  *             schema:
@@ -1273,234 +1665,19 @@ router.get('/friends', friendsController.getFriendsList);
  *                   example: error
  *                 message:
  *                   type: string
- *                   example: "User not found"
+ *               examples:
+ *                 mismatch:
+ *                   value:
+ *                     status: "error"
+ *                     message: "Passwords do not match"
  */
-router.post('/add-friend', friendsController.addFriend);
-/**
- * @openapi
- * /user/remove-friend:
- *   post:
- *     summary: Remove a friend
- *     description: Removes a friend from the authenticated user's friend list using the friend's ID. Requires user authentication and an existing friendship.
- *     tags:
- *       - Friends
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               friendId:
- *                 type: string
- *                 format: uuid
- *                 example: "09127216-c1a9-468e-9a96-d712ab67edd9"
- *                 description: The unique identifier of the friend to remove
- *             required:
- *               - friendId
- *     responses:
- *       200:
- *         description: Friend removed successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 data:
- *                   type: null
- *                   example: null
- *                   description: No data returned for this response
- *                 message:
- *                   type: string
- *                   example: "Friend removed successfully"
- *       400:
- *         description: Bad Request - Missing friend ID
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: error
- *                 message:
- *                   type: string
- *                   example: "Friend ID is required"
- *       401:
- *         description: Unauthorized - User not logged in
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: error
- *                 message:
- *                   type: string
- *                   example: "Please log in"
- *       404:
- *         description: Not Found - Friendship not found
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: error
- *                 message:
- *                   type: string
- *                   example: "Friendship not found"
- */
-router.post('/remove-friend', friendsController.removeFriend);
-/**
- * @openapi
- * /user/referral-stats:
- *   get:
- *     summary: Retrieve referral statistics
- *     description: Fetches referral statistics for the authenticated user, including their referral code, total number of referrals, and details of referred users. Requires user authentication.
- *     tags:
- *       - Friends
- *     responses:
- *       200:
- *         description: Referral stats retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 data:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       referralCode:
- *                         type: string
- *                         example: "NCYSDh"
- *                         description: The referral code of the authenticated user
- *                       totalReferrals:
- *                         type: integer
- *                         example: 0
- *                         description: The total number of users referred by the authenticated user
- *                       referredUsers:
- *                         type: array
- *                         items:
- *                           type: object
- *                           properties:
- *                             name:
- *                               type: string
- *                               example: "null null"
- *                               description: The full name of the referred user
- *                             email:
- *                               type: string
- *                               format: email
- *                               example: "daveuchenna2404@gmail.com"
- *                               description: The email address of the referred user
- *                             joinedAt:
- *                               type: string
- *                               format: date-time
- *                               example: "2025-10-08T00:09:29.089Z"
- *                               description: Timestamp when the referred user joined
- *                 message:
- *                   type: string
- *                   example: "Referral stats retrieved successfully"
- *       401:
- *         description: Unauthorized - User not logged in
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: error
- *                 message:
- *                   type: string
- *                   example: "Please log in"
- *       404:
- *         description: Not Found - User not found
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: error
- *                 message:
- *                   type: string
- *                   example: "User not found"
- */
-router.get('/referral-stats', friendsController.getReferralStats);
-/**
- * @openapi
- * /user/referral-code:
- *   get:
- *     summary: Retrieve user's referral code
- *     description: Fetches the referral code and referral link for the authenticated user. Requires user authentication.
- *     tags:
- *       - Friends
- *     responses:
- *       200:
- *         description: Referral code retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 data:
- *                   type: object
- *                   properties:
- *                     referralCode:
- *                       type: string
- *                       example: "NCYSDh"
- *                       description: The referral code of the authenticated user
- *                     referralLink:
- *                       type: string
- *                       example: "http://localhost:3000/signup?ref=NCYSDh"
- *                       description: The full referral link for the user
- *                 message:
- *                   type: string
- *                   example: "Referral code retrieved successfully"
- *       401:
- *         description: Unauthorized - User not logged in
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: error
- *                 message:
- *                   type: string
- *                   example: "Please log in"
- *       404:
- *         description: Not Found - User not found
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: error
- *                 message:
- *                   type: string
- *                   example: "User not found"
- */
-router.get('/referral-code', friendsController.getMyReferralCode);
+router.post('/change-password', userController.changePassword);
 
+router.get('/friends-wishlists', friendsController.getFriendsWishlists);
+router.get('/friends', friendsController.getFriendsList);
+router.post('/remove-friend', friendsController.removeFriend);
+router.get('/referral-stats', friendsController.getReferralStats);
+router.get('/referral-code', friendsController.getMyReferralCode);
 router.get('/search', userController.partialFindByUsernameOrEmail);
 
 export { router as userRouter };

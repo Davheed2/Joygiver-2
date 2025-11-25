@@ -17,6 +17,10 @@ export const startDeviceTokenCleanupCron = () => {
 };
 
 export const notifyInactiveUsersCron = () => {
+	// Run every minute:
+	// cron.schedule('* * * * *', async () => {
+	// For testing (every 30 seconds), uncomment the following and comment out the line above:
+	// cron.schedule('*/30 * * * * *', async () => {
 	cron.schedule('0 3 * * *', async () => {
 		try {
 			const sevenDaysAgo = new Date();

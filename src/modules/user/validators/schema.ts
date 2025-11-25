@@ -51,10 +51,12 @@ export const userModuleSchema = z
 				}
 			),
 		password: passwordZ.optional(),
+		confirmPassword: passwordZ.optional(),
 		oldPassword: passwordZ.optional(),
 		newPassword: passwordZ.optional(),
 		userId: uuidZ.optional(),
 		otp: z.string().optional(),
+		token: z.string().optional(),
 		method: z.enum(['email', 'sms']).optional(),
 		code: z.string().optional(),
 		referralCode: z.string().optional(),

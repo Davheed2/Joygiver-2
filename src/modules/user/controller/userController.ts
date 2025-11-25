@@ -2,94 +2,64 @@ import { Request, Response } from 'express';
 import {
 	AppError,
 	AppResponse,
+	comparePassword,
+	createToken,
 	extractTokenFamily,
-	generateReferralCode,
+	generateRandomString,
 	generateTokenPair,
-	generateUniqueUsername,
+	getDomainReferer,
 	getRefreshTokenFromRequest,
+	hashPassword,
 	invalidateTokenFamily,
 	invalidateUserTokenFamilies,
 	parseTokenDuration,
+	sendForgotPasswordEmail,
 	sendLoginEmail,
 	sendOtpEmail,
 	sendOtpSms,
+	sendResetPasswordEmail,
 	sendWelcomeEmail,
 	setCookie,
 	toJSON,
+	verifyToken,
 } from '@/common/utils';
 import { catchAsync } from '@/middlewares';
 import { friendsRepository, userRepository } from '@/modules/user/repository';
 import { ENVIRONMENT } from '@/common/config';
-import { IUser } from '@/common/interfaces';
+import { IReferralCode, IUser } from '@/common/interfaces';
 import { DateTime } from 'luxon';
 import { walletRepository } from '@/modules/wallet/repository';
+import { referralRepository } from '@/modules/user/repository';
 
 export class UserController {
 	signUp = catchAsync(async (req: Request, res: Response) => {
-		const { email, firstName, lastName, username, phone, gender, dob, referralCode } = req.body;
+		const { email, phone } = req.body;
 
 		if (!email && !phone) {
 			throw new AppError('Either email or phone number is required', 400);
 		}
 
-		if (!gender) {
-			throw new AppError('Gender is required', 400);
-		}
-
 		if (email) {
 			const existingEmailUser = await userRepository.findByEmail(email);
 			if (existingEmailUser) {
-				throw new AppError('User with this email already exists', 409);
+				return AppResponse(res, 200, toJSON([existingEmailUser]), 'User with this email already exists');
 			}
 		}
 
 		if (phone) {
 			const existingPhoneUser = await userRepository.findByPhone(phone);
 			if (existingPhoneUser) {
-				throw new AppError('User with this phone number already exists', 409);
+				return AppResponse(res, 200, toJSON([existingPhoneUser]), 'User with this phone number already exists');
 			}
 		}
-
-		let finalUsername = username;
-		if (username) {
-			const existingUsernameUser = await userRepository.findByUsername(username);
-			if (existingUsernameUser) {
-				throw new AppError('User with this username already exists', 409);
-			}
-		} else {
-			finalUsername = await generateUniqueUsername(lastName);
-		}
-
-		let referrer: IUser | null = null;
-		if (referralCode) {
-			referrer = await userRepository.findByReferralCode(referralCode);
-			console.log(referrer);
-			if (!referrer) {
-				throw new AppError('Invalid referral code', 400);
-			}
-		}
-
-		const isRegistrationComplete = !!(email && firstName && lastName && phone && dob && username);
-		const referCode = generateReferralCode();
 
 		const [user] = await userRepository.create({
 			email,
-			firstName,
-			lastName,
-			username: finalUsername,
 			phone,
-			gender,
-			dob,
 			ipAddress: req.ip,
-			isRegistrationComplete,
-			referralCode: referCode,
 		});
 		if (!user) {
 			throw new AppError('Failed to create user', 500);
-		}
-
-		if (referralCode) {
-			await friendsRepository.addFriendViaReferral(user.id, referralCode);
 		}
 
 		const currentRequestTime = DateTime.now();
@@ -109,14 +79,6 @@ export class UserController {
 			otp: generatedOtp,
 			otpExpires,
 			otpRetries: (user.otpRetries || 0) + 1,
-		});
-
-		await walletRepository.create({
-			userId: user.id,
-			availableBalance: 0,
-			pendingBalance: 0,
-			totalReceived: 0,
-			totalWithdrawn: 0,
 		});
 
 		if (email && user.email) {
@@ -135,16 +97,14 @@ export class UserController {
 			}
 		}
 
-		await sendWelcomeEmail(user.email, user.firstName);
-
 		return AppResponse(res, 201, toJSON([user]), 'User created successfully');
 	});
 
 	signIn = catchAsync(async (req: Request, res: Response) => {
-		const { email, phone } = req.body;
+		const { email, phone, password } = req.body;
 
-		if (!email && !phone) {
-			throw new AppError('Incomplete login data', 401);
+		if ((!email && !phone) || !password) {
+			throw new AppError('Either email or phone number and password required', 401);
 		}
 
 		let user: IUser | null = null;
@@ -157,7 +117,6 @@ export class UserController {
 		if (!user) {
 			throw new AppError('User not found', 404);
 		}
-
 		if (user.isSuspended) {
 			throw new AppError('Your account is currently suspended', 401);
 		}
@@ -166,38 +125,34 @@ export class UserController {
 		}
 
 		const currentRequestTime = DateTime.now();
-		const lastOtpRetry = user.lastLogin
-			? currentRequestTime.diff(DateTime.fromISO(user.lastLogin.toISOString()), 'hours')
-			: null;
-
-		if (user.otpRetries >= 5 && lastOtpRetry && Math.round(lastOtpRetry.hours) < 1) {
-			throw new AppError('Too many OTP requests. Please try again in an hour.', 429);
+		const lastLoginRetry = currentRequestTime.diff(DateTime.fromISO(user.lastLogin.toISOString()), 'hours');
+		if (user.loginRetries >= 5 && Math.round(lastLoginRetry.hours) < 12) {
+			throw new AppError('login retries exceeded!', 401);
 		}
 
-		// const generatedOtp = generateOtp();
-		const generatedOtp = '222222';
-		const otpExpires = currentRequestTime.plus({ minutes: 5 }).toJSDate();
+		const isPasswordValid = await comparePassword(password, user.password);
+		if (!isPasswordValid) {
+			await userRepository.update(user.id, { loginRetries: user.loginRetries + 1 });
+			throw new AppError('Invalid credentials', 401);
+		}
+
+		const { accessToken, refreshToken } = await generateTokenPair(user.id);
+
+		setCookie(req, res, 'accessToken', accessToken, parseTokenDuration(ENVIRONMENT.JWT_EXPIRES_IN.ACCESS));
+		setCookie(req, res, 'refreshToken', refreshToken, parseTokenDuration(ENVIRONMENT.JWT_EXPIRES_IN.REFRESH));
 
 		await userRepository.update(user.id, {
-			otp: generatedOtp,
-			otpExpires,
-			otpRetries: (user.otpRetries || 0) + 1,
+			loginRetries: 0,
+			lastLogin: currentRequestTime.toJSDate(),
 		});
 
-		if (email && user.email) {
-			await sendOtpEmail(user.email, user.firstName, generatedOtp);
-			console.log(`OTP sent to email ${user.email}: ${generatedOtp}`);
-		} else if (phone && user.phone) {
-			const smsResult = await sendOtpSms(user.phone, generatedOtp, 'dnd');
-
-			if (!smsResult.success) {
-				throw new AppError('Failed to send OTP via SMS. Please try again.', 500);
-			}
-
-			console.log(`OTP resent to phone ${user.phone}: ${generatedOtp}`);
+		if (user.email) {
+			const loginTime = DateTime.now().toFormat("cccc, LLLL d, yyyy 'at' t");
+			await sendLoginEmail(user.email, user.firstName, loginTime);
+			return AppResponse(res, 200, toJSON([user]), 'User logged in successfully');
 		}
 
-		return AppResponse(res, 200, toJSON([user]), 'Please request OTP to complete sign in.');
+		return AppResponse(res, 200, toJSON([user]), 'User logged in successfully');
 	});
 
 	sendOtp = catchAsync(async (req: Request, res: Response) => {
@@ -217,11 +172,9 @@ export class UserController {
 		if (!user) {
 			throw new AppError('User not found', 404);
 		}
-
 		if (user.isSuspended) {
 			throw new AppError('Your account is currently suspended', 401);
 		}
-
 		if (user.isDeleted) {
 			throw new AppError('Account not found', 404);
 		}
@@ -320,7 +273,7 @@ export class UserController {
 
 	updateUserDetails = catchAsync(async (req: Request, res: Response) => {
 		const { user } = req;
-		const { email, firstName, lastName, dob, phone, username } = req.body;
+		const { email, firstName, lastName, username, password, phone, gender, dob, referralCode } = req.body;
 
 		if (!user) {
 			throw new AppError('User not found', 404);
@@ -357,6 +310,20 @@ export class UserController {
 			}
 		}
 
+		let referrer: IReferralCode | null = null;
+		if (referralCode) {
+			referrer = await referralRepository.findByCode(referralCode);
+			console.log(referrer);
+			if (!referrer) {
+				throw new AppError('Invalid referral code', 400);
+			}
+		}
+
+		let hashedPassword: string | undefined;
+		if (password) {
+			hashedPassword = await hashPassword(password);
+		}
+
 		const updateData: Partial<IUser> = {};
 		if (email !== undefined) updateData.email = email;
 		if (firstName !== undefined) updateData.firstName = firstName;
@@ -364,6 +331,9 @@ export class UserController {
 		if (dob !== undefined) updateData.dob = dob;
 		if (phone !== undefined) updateData.phone = phone;
 		if (username !== undefined) updateData.username = username;
+		if (gender !== undefined) updateData.gender = gender;
+		if (referrer !== null) updateData.referredBy = referrer.userId;
+		if (password !== undefined) updateData.password = hashedPassword;
 
 		const updatedUser = { ...existingUser, ...updateData };
 		const willBeComplete = !!(
@@ -372,8 +342,15 @@ export class UserController {
 			updatedUser.lastName &&
 			updatedUser.phone &&
 			updatedUser.dob &&
-			updatedUser.username
+			updatedUser.username &&
+			updatedUser.gender &&
+			updatedUser.referredBy &&
+			updatedUser.password
 		);
+
+		const wasIncomplete = !existingUser.isRegistrationComplete;
+		const isNowComplete = willBeComplete;
+		const hasJustCompletedRegistration = wasIncomplete && isNowComplete;
 
 		if (willBeComplete) {
 			updateData.isRegistrationComplete = true;
@@ -387,6 +364,30 @@ export class UserController {
 		const freshUser = await userRepository.findById(existingUser.id);
 		if (!freshUser) {
 			throw new AppError('Failed to retrieve updated user', 500);
+		}
+
+		if (referrer) {
+			await friendsRepository.addFriendViaReferral(user.id, referralCode);
+
+			await referralRepository.update(referrer.id, {
+				isUsed: true,
+				usedByUserId: freshUser.id,
+				usedAt: DateTime.now().toJSDate(),
+			});
+		}
+
+		if (hasJustCompletedRegistration) {
+			await walletRepository.create({
+				userId: user.id,
+				availableBalance: 0,
+				pendingBalance: 0,
+				totalReceived: 0,
+				totalWithdrawn: 0,
+			});
+
+			await referralRepository.generateReferralCodes(user.id, 5);
+
+			await sendWelcomeEmail(freshUser.email, freshUser.firstName);
 		}
 
 		return AppResponse(res, 200, toJSON([freshUser]), 'Profile updated successfully');
@@ -429,6 +430,132 @@ export class UserController {
 		await invalidateUserTokenFamilies(user.id);
 
 		AppResponse(res, 200, null, 'Logout successful');
+	});
+
+	forgotPassword = catchAsync(async (req: Request, res: Response) => {
+		const { email } = req.body;
+
+		if (!email) {
+			throw new AppError('Email is required', 400);
+		}
+
+		const user = await userRepository.findByEmail(email);
+		if (!user) {
+			throw new AppError('No user found with provided email', 404);
+		}
+
+		if (user.passwordResetRetries >= 6) {
+			await userRepository.update(user.id, {
+				isSuspended: true,
+			});
+
+			throw new AppError('Password reset retries exceeded! and account suspended', 401);
+		}
+
+		const passwordResetToken = await generateRandomString();
+		const hashedPasswordResetToken = createToken(
+			{
+				token: passwordResetToken,
+			},
+			{ expiresIn: '15m' }
+		);
+
+		const passwordResetUrl = `${getDomainReferer(req)}/reset-password?token=${hashedPasswordResetToken}`;
+
+		await userRepository.update(user.id, {
+			passwordResetToken: passwordResetToken,
+			passwordResetExpires: DateTime.now().plus({ minutes: 15 }).toJSDate(),
+			passwordResetRetries: user.passwordResetRetries + 1,
+		});
+
+		await sendForgotPasswordEmail(user.email, user.firstName, passwordResetUrl);
+
+		return AppResponse(res, 200, null, `Password reset link sent to ${email}`);
+	});
+
+	resetPassword = catchAsync(async (req: Request, res: Response) => {
+		const { token, password, confirmPassword } = req.body;
+
+		if (!token || !password || !confirmPassword) {
+			throw new AppError('All fields are required', 403);
+		}
+		if (password !== confirmPassword) {
+			throw new AppError('Passwords do not match', 403);
+		}
+
+		const decodedToken = await verifyToken(token);
+		if (!decodedToken.token) {
+			throw new AppError('Invalid token', 401);
+		}
+
+		const user = await userRepository.findByPasswordResetToken(decodedToken.token);
+		if (!user) {
+			throw new AppError('Password reset token is invalid or has expired', 400);
+		}
+
+		const isSamePassword = await comparePassword(password, user.password);
+		if (isSamePassword) {
+			throw new AppError('New password cannot be the same as the old password', 400);
+		}
+
+		const hashedPassword = await hashPassword(password);
+
+		const updatedUser = await userRepository.update(user.id, {
+			password: hashedPassword,
+			passwordResetRetries: 0,
+			passwordChangedAt: DateTime.now().toJSDate(),
+			passwordResetToken: '',
+			passwordResetExpires: DateTime.now().toJSDate(),
+		});
+		if (!updatedUser) {
+			throw new AppError('Password reset failed', 400);
+		}
+
+		await sendResetPasswordEmail(user.email, user.firstName);
+
+		return AppResponse(res, 200, null, 'Password reset successfully');
+	});
+
+	changePassword = catchAsync(async (req: Request, res: Response) => {
+		const { password, confirmPassword } = req.body;
+		const { user } = req;
+
+		if (!password || !confirmPassword) {
+			throw new AppError('Password and confirm password are required', 403);
+		}
+		if (password !== confirmPassword) {
+			throw new AppError('Passwords do not match', 403);
+		}
+		if (!user) {
+			throw new AppError('You are not logged in', 401);
+		}
+
+		const extinguishUser = await userRepository.findById(user.id);
+		if (!extinguishUser) {
+			throw new AppError('User not found', 400);
+		}
+
+		const isSamePassword = await comparePassword(password, extinguishUser.password);
+		if (isSamePassword) {
+			throw new AppError('New password cannot be the same as the old password', 400);
+		}
+
+		const hashedPassword = await hashPassword(password);
+
+		const updatedUser = await userRepository.update(extinguishUser.id, {
+			password: hashedPassword,
+			passwordResetRetries: 0,
+			passwordChangedAt: DateTime.now().toJSDate(),
+			passwordResetToken: '',
+			passwordResetExpires: DateTime.now().toJSDate(),
+		});
+		if (!updatedUser) {
+			throw new AppError('Password reset failed', 400);
+		}
+
+		await sendResetPasswordEmail(extinguishUser.email, extinguishUser.firstName);
+
+		return AppResponse(res, 200, null, 'Password reset successfully');
 	});
 
 	getProfile = catchAsync(async (req: Request, res: Response) => {

@@ -3,13 +3,13 @@ import { randomBytes, randomInt, createHash } from 'crypto';
 import jwt, { SignOptions } from 'jsonwebtoken';
 import { encode } from 'hi-base32';
 import { ENVIRONMENT } from '../config';
-import { IHashData, ISmsResult, ITokenFamily, LoginEmailData, OtpEmailData, WelcomeEmailData } from '../interfaces';
+import { ForgotPasswordData, IHashData, ISmsResult, ITokenFamily, LoginEmailData, OtpEmailData, ResetPasswordData, WelcomeEmailData } from '../interfaces';
 import type { Response, Request } from 'express';
 import { promisify } from 'util';
 import otpGenerator from 'otp-generator';
 import { addEmailToQueue, redisConnection } from '@/queues';
 import AppError from './appError';
-import { tokenFamilyRepository, userRepository } from '@/modules/user/repository';
+import { tokenFamilyRepository } from '@/modules/user/repository';
 import { RefreshTokenPayload } from '../types';
 import { smsService } from '@/services';
 
@@ -252,6 +252,15 @@ const getDomainReferer = (req: Request) => {
 	}
 };
 
+const generateRandomCode = (length: number = 5): string => {
+	const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+	let result = '';
+	for (let i = 0; i < length; i++) {
+		result += chars.charAt(Math.floor(Math.random() * chars.length));
+	}
+	return result;
+}
+
 const formatTimeSpent = (totalSeconds: number): string => {
 	if (totalSeconds < 0) {
 		throw new Error('Time cannot be negative');
@@ -468,15 +477,6 @@ const calculateFee = (amount: number) => {
 	return Math.round(totalFee * 100) / 100;
 };
 
-const generateReferralCode = () => {
-	return otpGenerator.generate(6, {
-		digits: true,
-		upperCaseAlphabets: true,
-		specialChars: false,
-		lowerCaseAlphabets: true,
-	});
-};
-
 const sendOtpEmail = async (email: string, name: string, otp: string): Promise<void> => {
 	const emailData: OtpEmailData = {
 		to: email,
@@ -514,6 +514,33 @@ const sendLoginEmail = async (email: string, name: string, time: string): Promis
 
 	addEmailToQueue({
 		type: 'loginEmail',
+		data: emailData,
+	});
+};
+
+const sendForgotPasswordEmail = async (email: string, name: string, resetLink: string): Promise<void> => {
+	const emailData: ForgotPasswordData = {
+		to: email,
+		priority: 'high',
+		name,
+		resetLink,
+	};
+
+	addEmailToQueue({
+		type: 'forgotPassword',
+		data: emailData,
+	});
+};
+
+const sendResetPasswordEmail = async (email: string, name: string): Promise<void> => {
+	const emailData: ResetPasswordData = {
+		to: email,
+		priority: 'high',
+		name,
+	};
+
+	addEmailToQueue({
+		type: 'resetPassword',
 		data: emailData,
 	});
 };
@@ -607,34 +634,6 @@ const validateAndFormatPhone = (
 	};
 };
 
-const generateUniqueUsername = async (lastName: string): Promise<string> => {
-	const maxAttempts = 10; 
-	if (!lastName) throw new Error('Last name is required to generate a username.');
-
-	let cleanLastName = lastName
-		.normalize('NFD') 
-		.replace(/[\u0300-\u036f]/g, '') 
-		.replace(/[^a-zA-Z0-9]/g, '') 
-		.trim()
-		.toLowerCase();
-	if (!cleanLastName) {
-		cleanLastName = 'user';
-	}
-
-	const formattedLastName = cleanLastName.charAt(0).toUpperCase() + cleanLastName.slice(1);
-
-	for (let attempt = 0; attempt < maxAttempts; attempt++) {
-		const randomDigits = Math.floor(1000 + Math.random() * 90000); 
-		const username = `${formattedLastName}#${randomDigits}`;
-
-		const existingUser = await userRepository.findByUsername(username);
-		if (!existingUser) {
-			return username;
-		}
-	}
-
-	throw new Error('Failed to generate a unique username after multiple attempts.');
-};
 
 export {
 	dateFromString,
@@ -656,6 +655,7 @@ export {
 	generateRefreshToken,
 	generateTokenFamily,
 	getDomainReferer,
+	generateRandomCode,
 	formatTimeSpent,
 	parseTimeSpent,
 	formatDuration,
@@ -663,6 +663,8 @@ export {
 	sendOtpEmail,
 	sendLoginEmail,
 	sendWelcomeEmail,
+	sendForgotPasswordEmail,
+	sendResetPasswordEmail,
 	getTokenFamilyKey,
 	getUsedTokenKey,
 	getUserFamiliesKey,
@@ -676,9 +678,7 @@ export {
 	extractTokenFamily,
 	getRefreshTokenFromRequest,
 	calculateFee,
-	generateReferralCode,
 	sendOtpSms,
 	sendTransactionAlertSms,
 	validateAndFormatPhone,
-	generateUniqueUsername,
 };

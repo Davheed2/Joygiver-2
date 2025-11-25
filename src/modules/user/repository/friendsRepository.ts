@@ -4,6 +4,7 @@ import { AppError } from '@/common/utils';
 import { DateTime } from 'luxon';
 import { userRepository } from './userRepository';
 import { wishlistRepository } from '@/modules/wishlist/repository';
+import { referralRepository } from './referralRepository';
 
 class FriendsRepository {
 	create = async (payload: Partial<IFriendship>) => {
@@ -149,30 +150,28 @@ class FriendsRepository {
 	};
 
 	addFriendViaReferral = async (newUserId: string, referralCode: string): Promise<void> => {
-		const referrer = await userRepository.findByReferralCode(referralCode);
-
+		const referrer = await referralRepository.findByCode(referralCode);
 		if (!referrer) {
 			throw new AppError('Invalid referral code', 400);
 		}
-
-		if (referrer.id === newUserId) {
+		if (referrer.userId === newUserId) {
 			return;
 		}
 
-		const existingFriendship = await this.findFriendship(newUserId, referrer.id);
+		const existingFriendship = await this.findFriendship(newUserId, referrer.userId);
 		if (existingFriendship) {
 			return;
 		}
 
-		await this.createFriendship(newUserId, referrer.id, 'referral');
+		await this.createFriendship(newUserId, referrer.userId, 'referral');
 
-		await userRepository.incrementReferralCount(referrer.id);
+		await userRepository.incrementReferralCount(referrer.userId);
 
-		await userRepository.update(newUserId, {
-			referredBy: referrer.id,
-		});
+		// await userRepository.update(newUserId, {
+		// 	referredBy: referrer.userId,
+		// });
 
-		console.log(`✅ Friendship created: ${newUserId} ↔ ${referrer.id} (via referral)`);
+		console.log(`✅ Friendship created: ${newUserId} ↔ ${referrer.userId} (via referral)`);
 	};
 
 	getFriendsList = async (userId: string, page = 1, limit = 50) => {
@@ -308,7 +307,6 @@ class FriendsRepository {
 		const referredUsers = await userRepository.findReferredUsers(userId);
 
 		return {
-			referralCode: user.referralCode,
 			totalReferrals: user.referralCount,
 			referredUsers: referredUsers.map((u) => ({
 				name: `${u.firstName} ${u.lastName}`,

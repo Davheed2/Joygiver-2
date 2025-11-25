@@ -6,11 +6,11 @@ export interface IUser {
 	username: string;
 	lastName: string;
 	email: string;
+	password: string;
 	ipAddress: string;
 	photo: string;
 	phone: string;
 	gender: string;
-	referralCode: string;
 	referredBy?: string;
 	referralCount: number;
 	dob: string;
@@ -19,6 +19,11 @@ export interface IUser {
 	lastActive: Date;
 	isSuspended: boolean;
 	isRegistrationComplete: boolean;
+	passwordResetRetries: number;
+	passwordResetToken: string;
+	passwordResetExpires: Date;
+	passwordChangedAt: Date;
+	loginRetries: number;
 	otp: string;
 	otpExpires: Date;
 	otpRetries: number;

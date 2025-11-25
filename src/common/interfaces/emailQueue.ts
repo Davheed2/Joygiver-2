@@ -16,6 +16,7 @@ export interface LoginEmailData extends CommonDataFields {
 	name: string;
 	time: string;
 }
+
 export interface ForgotPasswordData extends CommonDataFields {
 	resetLink: string;
 	name: string;

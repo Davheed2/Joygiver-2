@@ -73,6 +73,15 @@ class UserRepository {
 			.increment('referralCount', 1)
 			.update({ updated_at: DateTime.now().toJSDate() });
 	};
+
+	findByPasswordResetToken = async (passwordResetToken: string): Promise<IUser | null> => {
+		return await knexDb
+			.table('users')
+			.where({ passwordResetToken })
+			.where('passwordResetExpires', '>', DateTime.now().toJSDate())
+			.where({ isSuspended: false })
+			.first();
+	};
 }
 
 export const userRepository = new UserRepository();

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { AppError, AppResponse, toJSON } from '@/common/utils';
 import { catchAsync } from '@/middlewares';
-import { friendsRepository, userRepository } from '../repository';
+import { friendsRepository, referralRepository } from '../repository';
 
 export class FriendsController {
 	getFriendsWishlists = catchAsync(async (req: Request, res: Response) => {
@@ -85,21 +85,12 @@ export class FriendsController {
 			throw new AppError('Please log in', 401);
 		}
 
-		const userData = await userRepository.findById(user.id);
-
-		if (!userData) {
-			throw new AppError('User not found', 404);
+		const referralCode = await referralRepository.getUserReferralCodes(user.id);
+		if (!referralCode || referralCode.length === 0) {
+			throw new AppError('No referral code found', 404);
 		}
 
-		return AppResponse(
-			res,
-			200,
-			toJSON({
-				referralCode: userData.referralCode,
-				referralLink: `${process.env.FRONTEND_URL}/signup?ref=${userData.referralCode}`,
-			}),
-			'Referral code retrieved successfully'
-		);
+		return AppResponse(res, 200, toJSON(referralCode), 'Referral codes retrieved successfully');
 	});
 }
 
