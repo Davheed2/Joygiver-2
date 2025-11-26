@@ -650,7 +650,6 @@ export class WishlistController {
 					price: item.price,
 					categoryId: category.id,
 					imageUrl: item.imageUrl,
-					gender: item.gender,
 					popularity: Math.floor(Math.random() * 1000), // Random popularity score
 					isActive: true,
 				});

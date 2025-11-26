@@ -1,21 +1,58 @@
-import { ContributionStatus, Gender, GiftSelectionMode, WishlistStatus } from '../constants';
+import { ContributionStatus, WishlistStatus } from '../constants';
 
 export interface IWishlist {
 	id: string;
-	userId: string;
-	celebrationEvent: string;
-	celebrationDate: Date;
-	giftSelectionMode: GiftSelectionMode;
-	uniqueLink: string;
+	name: string;
+	description?: string;
+	emoji?: string;
+	colorTheme?: string;
 	status: WishlistStatus;
+	uniqueLink: string;
+
 	totalContributed: number;
 	contributorsCount: number;
+
 	viewsCount: number;
-	sharesCount: number;
 	isPublic: boolean;
+
+	userId: string;
+
+	celebrationEvent: string;
+	celebrationDate: Date;
 	expiresAt?: Date;
+
 	createdAt: Date;
 	updatedAt: Date;
+}
+
+export interface ICuratedItem {
+	id: string;
+	name: string;
+	imageUrl: string;
+	price: number;
+	categoryId: string;
+	popularity: number;
+	createdBy?: string;
+	isActive: boolean;
+	created_at?: Date;
+	updated_at?: Date;
+}
+
+export interface ICategory {
+	id: string;
+	name: string;
+	isActive: boolean;
+	created_at?: Date;
+	updated_at?: Date;
+}
+
+export interface IWishlistTemplate {
+	id: string;
+	name: string;
+	description?: string;
+	userId: string;
+	created_at?: Date;
+	updated_at?: Date;
 }
 
 export interface IWishlistItem {
@@ -46,27 +83,13 @@ export interface IWishlistItem {
 	updated_at?: Date;
 }
 
-export interface ICuratedItem {
+export interface IWishlistTemplateItem {
 	id: string;
 	name: string;
-	imageUrl: string;
+	imageUrl?: string;
 	price: number;
-	categoryId: string;
-	gender: Gender;
-	popularity: number;
-	createdBy?: string; 
-	itemType: 'global' | 'custom';
-	isPublic: boolean;
-	isActive: boolean;
-	created_at?: Date;
-	updated_at?: Date;
-}
-
-export interface ICategory {
-	id: string;
-	name: string;
-	iconUrl?: string;
-	isActive: boolean;
+	quantity: number;
+	wishlistTemplateId: string;
 	created_at?: Date;
 	updated_at?: Date;
 }
