@@ -32,7 +32,6 @@ export async function up(knex: Knex): Promise<void> {
 
 		table.index('wishlistId');
 		table.index('curatedItemId');
-		table.index('priority');
 	});
 }
 

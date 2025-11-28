@@ -972,13 +972,29 @@ router.get('/item-contributions', contributionController.getItemContributions);
  */
 router.get('/top-contributors', contributionController.getTopContributors);
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 router.use(protect);
 /**
  * @openapi
  * /wishlist/create-category:
  *   post:
  *     summary: Create a new category
- *     description: Creates a new category for the wishlist with the provided name and optional icon URL. Only authenticated users with admin privileges can create categories.
+ *     description: Creates a new category for the wishlist with the provided name. Only authenticated users with admin privileges can create categories.
  *     tags:
  *       - Wishlist
  *     requestBody:
@@ -1981,7 +1997,7 @@ router.post('/update-item', curatedItemController.updateCuratedItem);
  *                   example: "Failed to delete curated item"
  */
 router.post('/delete-item', curatedItemController.deleteCuratedItem);
-router.post('/seed-data', wishlistController.seedData);
+//router.post('/seed-data', wishlistController.seedData);
 /**
  * @openapi
  * /wishlist/create:

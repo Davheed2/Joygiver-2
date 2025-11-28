@@ -5,7 +5,6 @@ import { categoryRepository } from '../repository';
 import { ICategory } from '@/common/interfaces';
 
 export class CategoryController {
-	// Admin functions for categories
 	createCategory = catchAsync(async (req: Request, res: Response) => {
 		const { user } = req;
 		const { name } = req.body;
@@ -20,8 +19,13 @@ export class CategoryController {
 			throw new AppError('Name is required', 400);
 		}
 
+		const isCategoryExist = await categoryRepository.findByName(name.toLowerCase());
+		if (isCategoryExist) {
+			throw new AppError('Category with this name already exists', 400);
+		}
+
 		const [category] = await categoryRepository.create({
-			name,
+			name: name.toLowerCase(),
 		});
 		if (!category) {
 			throw new AppError('Failed to create category', 500);
@@ -65,7 +69,7 @@ export class CategoryController {
 		}
 
 		const updatePayload: Partial<ICategory> = {};
-		if (name) updatePayload.name = name;
+		if (name) updatePayload.name = name.toLowerCase();
 
 		const [updatedCategories] = await categoryRepository.update(categoryId, updatePayload);
 		if (!updatedCategories) {

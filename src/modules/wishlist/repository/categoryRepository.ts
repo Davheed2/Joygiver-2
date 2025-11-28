@@ -11,6 +11,10 @@ class CategoryRepository {
 		return await knexDb.table('categories').where({ id }).first();
 	};
 
+	findByName = async (name: string): Promise<ICategory | null> => {
+		return await knexDb.table('categories').where({ name }).first();
+	}
+
 	update = async (id: string, payload: Partial<ICategory>): Promise<ICategory[]> => {
 		return await knexDb('categories')
 			.where({ id })
