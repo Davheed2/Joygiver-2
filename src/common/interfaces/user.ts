@@ -1,4 +1,4 @@
-import { Role } from '../constants';
+import { Gender, Role } from '../constants';
 
 export interface IUser {
 	id: string;
@@ -10,7 +10,7 @@ export interface IUser {
 	ipAddress: string;
 	photo: string;
 	phone: string;
-	gender: string;
+	gender: Gender;
 	referredBy?: string;
 	referralCount: number;
 	dob: string;

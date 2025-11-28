@@ -58,7 +58,6 @@ class WishlistRepository {
 			totalContributed: wishlist.totalContributed,
 			contributorsCount: wishlist.contributorsCount,
 			viewsCount: wishlist.viewsCount,
-			sharesCount: wishlist.sharesCount,
 			itemsCount: items.length,
 			fundedItemsCount: fundedItems,
 			completionPercentage: Math.min(100, Math.round(completionPercentage)),

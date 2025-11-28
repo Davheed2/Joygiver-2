@@ -8,7 +8,7 @@ export class CategoryController {
 	// Admin functions for categories
 	createCategory = catchAsync(async (req: Request, res: Response) => {
 		const { user } = req;
-		const { name, iconUrl } = req.body;
+		const { name } = req.body;
 
 		if (!user) {
 			throw new AppError('Please log in to create a category', 401);
@@ -22,7 +22,6 @@ export class CategoryController {
 
 		const [category] = await categoryRepository.create({
 			name,
-			iconUrl,
 		});
 		if (!category) {
 			throw new AppError('Failed to create category', 500);
@@ -48,7 +47,7 @@ export class CategoryController {
 
 	updateCategory = catchAsync(async (req: Request, res: Response) => {
 		const { user } = req;
-		const { categoryId, name, iconUrl } = req.body;
+		const { categoryId, name } = req.body;
 
 		if (!user) {
 			throw new AppError('Please log in to update a category', 401);
@@ -67,7 +66,6 @@ export class CategoryController {
 
 		const updatePayload: Partial<ICategory> = {};
 		if (name) updatePayload.name = name;
-		if (iconUrl) updatePayload.iconUrl = iconUrl;
 
 		const [updatedCategories] = await categoryRepository.update(categoryId, updatePayload);
 		if (!updatedCategories) {

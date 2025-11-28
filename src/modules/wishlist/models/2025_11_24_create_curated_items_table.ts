@@ -8,6 +8,9 @@ export async function up(knex: Knex): Promise<void> {
 		table.decimal('price', 12, 2).notNullable();
 		table.integer('popularity').defaultTo(0);
 		table.boolean('isActive').defaultTo(true);
+		table.enum('itemType', ['global', 'custom']).notNullable();
+		table.enum('gender', ['male', 'female', 'prefer_not_to_say']).notNullable();
+		table.boolean('isPublic').defaultTo(false);
 		table.uuid('categoryId').notNullable().references('id').inTable('categories').onDelete('CASCADE');
 		table.uuid('createdBy').nullable().references('id').inTable('users').onDelete('SET NULL');
 		table.timestamps(true, true);

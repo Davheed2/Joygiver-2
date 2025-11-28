@@ -992,11 +992,6 @@ router.use(protect);
  *                 type: string
  *                 example: "Tech & gadgets"
  *                 description: The name of the category
- *               iconUrl:
- *                 type: string
- *                 nullable: true
- *                 example: "https://iconurl.com"
- *                 description: The URL of the category's icon
  *             required:
  *               - name
  *     responses:
@@ -1024,11 +1019,6 @@ router.use(protect);
  *                         type: string
  *                         example: "Tech & gadgets"
  *                         description: The name of the category
- *                       iconUrl:
- *                         type: string
- *                         nullable: true
- *                         example: "https://iconurl.com"
- *                         description: The URL of the category's icon
  *                       isActive:
  *                         type: boolean
  *                         example: true
@@ -1128,11 +1118,6 @@ router.post('/create-category', categoryController.createCategory);
  *                         type: string
  *                         example: "Just cash"
  *                         description: The name of the category
- *                       iconUrl:
- *                         type: string
- *                         nullable: true
- *                         example: "https://iconurl.com"
- *                         description: The URL of the category's icon
  *                       isActive:
  *                         type: boolean
  *                         example: true
@@ -1178,7 +1163,7 @@ router.get('/categories', categoryController.getCategories);
  * /wishlist/update-category:
  *   post:
  *     summary: Update an existing category
- *     description: Updates an existing category in the wishlist with the provided category ID, name, and/or icon URL. Only authenticated users with admin privileges can update categories. At least one field (name or iconUrl) must be provided to update.
+ *     description: Updates an existing category in the wishlist with the provided category ID, name, and/or icon URL. Only authenticated users with admin privileges can update categories. At least one field (name) must be provided to update.
  *     tags:
  *       - Wishlist
  *     requestBody:
@@ -1198,11 +1183,6 @@ router.get('/categories', categoryController.getCategories);
  *                 nullable: true
  *                 example: "Just cash"
  *                 description: The updated name of the category
- *               iconUrl:
- *                 type: string
- *                 nullable: true
- *                 example: "https://iconurll.com"
- *                 description: The updated URL of the category's icon
  *             required:
  *               - categoryId
  *     responses:
@@ -1230,11 +1210,6 @@ router.get('/categories', categoryController.getCategories);
  *                         type: string
  *                         example: "Just cash"
  *                         description: The name of the category
- *                       iconUrl:
- *                         type: string
- *                         nullable: true
- *                         example: "https://iconurll.com"
- *                         description: The URL of the category's icon
  *                       isActive:
  *                         type: boolean
  *                         example: true

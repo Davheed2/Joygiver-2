@@ -1,4 +1,4 @@
-import { ContributionStatus, WishlistStatus } from '../constants';
+import { ContributionStatus, Gender, WishlistStatus } from '../constants';
 
 export interface IWishlist {
 	id: string;
@@ -33,6 +33,9 @@ export interface ICuratedItem {
 	categoryId: string;
 	popularity: number;
 	createdBy?: string;
+	gender: Gender;
+	itemType: 'global' | 'custom';
+	isPublic: boolean;
 	isActive: boolean;
 	created_at?: Date;
 	updated_at?: Date;
@@ -49,7 +52,8 @@ export interface ICategory {
 export interface IWishlistTemplate {
 	id: string;
 	name: string;
-	description?: string;
+	emoji?: string;
+	colorTheme?: string;
 	userId: string;
 	created_at?: Date;
 	updated_at?: Date;
@@ -87,6 +91,8 @@ export interface IWishlistTemplateItem {
 	id: string;
 	name: string;
 	imageUrl?: string;
+	curatedItemId?: string;
+	categoryId: string;
 	price: number;
 	quantity: number;
 	wishlistTemplateId: string;

@@ -28,7 +28,6 @@ export const wishlistModuleSchema = z
 					message: 'Invalid date format. Use YYYY-MM-DD',
 				}
 			),
-		giftSelectionMode: z.enum(['pick_by_yourself', 'help_me_choose']).optional(),
 		budget: z.number().positive().optional(),
 		budgetMin: z.number().positive().optional(),
 		budgetMax: z.number().positive().optional(),
@@ -38,7 +37,10 @@ export const wishlistModuleSchema = z
 		status: z.enum(['draft', 'active', 'completed', 'expired']).optional(),
 		isPublic: z.boolean().optional(),
 		wishlistId: uuidZ.optional(),
+		wishlistTemplateId: uuidZ.optional(),
 		uniqueLink: z.string().optional(),
+		emoji: z.string().optional(),
+		colorTheme: z.string().optional(),
 
 		// ==================== WISHLIST ITEM FIELDS ====================
 		items: z

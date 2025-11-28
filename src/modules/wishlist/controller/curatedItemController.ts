@@ -7,7 +7,6 @@ import { ICuratedItem } from '@/common/interfaces';
 import { userRepository } from '@/modules/user/repository';
 
 export class CuratedItemController {
-	// Curated items
 	createCuratedItem = catchAsync(async (req: Request, res: Response) => {
 		const { user } = req;
 		const { name, imageUrl, price, categoryId, gender } = req.body;
@@ -16,11 +15,26 @@ export class CuratedItemController {
 		if (!user) {
 			throw new AppError('Please log in to create a curated item', 401);
 		}
-		if (!name || !price || !categoryId || !gender) {
-			throw new AppError('Name, price, category, and gender are required', 400);
+		if (!name || !price || !categoryId) {
+			throw new AppError('Name, price and category are required', 400);
 		}
 		if (price <= 0) {
 			throw new AppError('Price must be greater than 0', 400);
+		}
+
+		const category = await categoryRepository.findById(categoryId);
+		if (!category) {
+			throw new AppError('Category not found', 404);
+		}
+
+		const isAdmin = user.role === 'admin';
+		const itemType = isAdmin ? 'global' : 'custom';
+		const isPublic = isAdmin;
+
+		if (isAdmin) {
+			if (!gender) {
+				throw new AppError('Gender is required for global curated items', 400);
+			}
 		}
 
 		const genderMap: Record<string, Gender> = {
@@ -34,14 +48,7 @@ export class CuratedItemController {
 			throw new AppError('Invalid gender. Must be male, female, or prefer_not_to_say', 400);
 		}
 
-		const category = await categoryRepository.findById(categoryId);
-		if (!category) {
-			throw new AppError('Category not found', 404);
-		}
-
-		const isAdmin = user.role === 'admin';
-		const itemType = isAdmin ? 'global' : 'custom';
-		const isPublic = isAdmin;
+		const assignedGender = isAdmin ? mappedGender : user.gender;
 
 		let finalImageUrl: string | undefined = undefined;
 		if (imageFile) {
@@ -61,11 +68,11 @@ export class CuratedItemController {
 			imageUrl: finalImageUrl,
 			price: parseFloat(price),
 			categoryId: categoryId,
-			gender: mappedGender,
+			gender: assignedGender,
 			popularity: 0,
 			isActive: true,
-			createdBy: user.id, 
-			itemType, 
+			createdBy: user.id,
+			itemType,
 			isPublic,
 		});
 
@@ -81,12 +88,7 @@ export class CuratedItemController {
 		const { categoryIds, budgetMin, budgetMax, page = 1, limit = 20 } = req.query;
 
 		if (!user) {
-			throw new AppError('Authentication required', 401);
-		}
-
-		const existingUser = await userRepository.findById(user.id);
-		if (!existingUser) {
-			throw new AppError('User not found', 404);
+			throw new AppError('Please log in to get curated items', 401);
 		}
 
 		let categoryArray: string[] | undefined;
@@ -100,23 +102,25 @@ export class CuratedItemController {
 
 		let minPrice: number | undefined;
 		let maxPrice: number | undefined;
-
 		if (budgetMin) {
 			minPrice = parseFloat(budgetMin as string);
 			if (isNaN(minPrice) || minPrice < 0) {
 				throw new AppError('Invalid budget minimum', 400);
 			}
 		}
-
 		if (budgetMax) {
 			maxPrice = parseFloat(budgetMax as string);
 			if (isNaN(maxPrice) || maxPrice < 0) {
 				throw new AppError('Invalid budget maximum', 400);
 			}
 		}
-
 		if (minPrice !== undefined && maxPrice !== undefined && minPrice >= maxPrice) {
 			throw new AppError('Budget minimum must be less than budget maximum', 400);
+		}
+
+		const existingUser = await userRepository.findById(user.id);
+		if (!existingUser) {
+			throw new AppError('User not found', 404);
 		}
 
 		const pageNum = parseInt(page as string, 10);
@@ -126,7 +130,7 @@ export class CuratedItemController {
 		let items: ICuratedItem[];
 		let totalItems: number;
 
-		if (userGender === 'prefer not to say') {
+		if (userGender === Gender.PREFER_NOT_TO_SAY) {
 			const result = await curatedItemRepository.findByCategoriesAllGenders(
 				categoryArray,
 				minPrice,
@@ -134,13 +138,14 @@ export class CuratedItemController {
 				pageNum,
 				limitNum
 			);
+
 			items = result.items;
 			totalItems = result.total;
 		} else {
 			const genderMap: Record<string, Gender> = {
 				male: Gender.MALE,
 				female: Gender.FEMALE,
-				other: Gender.PREFER_NOT_TO_SAY,
+				prefer_not_to_say: Gender.PREFER_NOT_TO_SAY,
 			};
 			const mappedGender = genderMap[userGender] || Gender.PREFER_NOT_TO_SAY;
 

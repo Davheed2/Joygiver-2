@@ -6,3 +6,5 @@ export * from './wishlistItemRepository';
 export * from './curatedItemRepository';
 export * from './wishlistItemViewRepository';
 export * from './wishlistItemWithdrawalRepository';
+export * from './wishlistTemplateRepository';
+export * from './wishlistTemplateItemRepository';
