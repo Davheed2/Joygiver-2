@@ -13,7 +13,6 @@ import { nanoid } from 'nanoid';
 import slugify from 'slugify';
 
 export class WishlistItemController {
-	// Wishlist functions
 	addItemsToWishlist = catchAsync(async (req: Request, res: Response) => {
 		const { user } = req;
 		const { items, wishlistId } = req.body;
@@ -81,7 +80,6 @@ export class WishlistItemController {
 				imageUrl: curated.imageUrl,
 				price: curated.price,
 				categoryId: curated.categoryId,
-				priority: index + 1,
 				uniqueLink,
 			});
 		}
@@ -116,6 +114,7 @@ export class WishlistItemController {
 		return AppResponse(res, 200, toJSON([wishlistItem]), 'Wishlist item retrieved successfully');
 	});
 
+	/// document these 3
 	getWishlistItemStats = catchAsync(async (req: Request, res: Response) => {
 		const { wishlistItemId } = req.query;
 

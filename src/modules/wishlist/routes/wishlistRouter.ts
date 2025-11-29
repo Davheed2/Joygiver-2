@@ -15,18 +15,18 @@ const router = express.Router();
  * @openapi
  * /wishlist:
  *   get:
- *     summary: Retrieve a wishlist by its unique link
- *     description: Fetches a wishlist and its associated items using the provided unique link. The wishlist must be public and active. Increments the view count and logs the view with the visitor's IP address, user agent, and referrer.
+ *     summary: Get public wishlist by unique link
+ *     description: Fetches a public wishlist using its unique shareable link. Only active and public wishlists are accessible. Automatically tracks views (IP, user agent, referrer).
  *     tags:
  *       - Wishlist
  *     parameters:
  *       - in: query
  *         name: uniqueLink
+ *         required: true
  *         schema:
  *           type: string
- *           example: "https://joygiver.co/birthday-WBNmhb"
- *         required: true
- *         description: The unique link of the wishlist to retrieve
+ *         example: "birthday-dwe1-F"
+ *         description: The slug part of the wishlist URL (everything after https://joygiver.co/)
  *     responses:
  *       200:
  *         description: Wishlist fetched successfully
@@ -49,56 +49,55 @@ const router = express.Router();
  *                           id:
  *                             type: string
  *                             format: uuid
- *                             example: "a2f42667-ba47-42e2-a3bb-57403a9132be"
- *                             description: The unique identifier of the wishlist
- *                           celebrationEvent:
+ *                             example: "f9b49a73-6d94-4afd-ab50-7c20ef0b6632"
+ *                           name:
  *                             type: string
- *                             example: "Birthday"
- *                             description: The event associated with the wishlist
- *                           celebrationDate:
+ *                             example: "My birthday wishlist"
+ *                           description:
  *                             type: string
- *                             format: date-time
- *                             example: "2025-10-31T23:00:00.000Z"
- *                             description: The date of the celebration event
+ *                             example: "My birthday wishlist description"
  *                           uniqueLink:
  *                             type: string
- *                             example: "https://joygiver.co/birthday-WBNmhb"
- *                             description: The unique URL for accessing the wishlist
+ *                             example: "https://joygiver.co/birthday-dwe1-F"
+ *                           emoji:
+ *                             type: string
+ *                             example: "emoji"
+ *                           colorTheme:
+ *                             type: string
+ *                             example: "colorTheme"
  *                           status:
  *                             type: string
  *                             example: "active"
- *                             description: The status of the wishlist
  *                           totalContributed:
  *                             type: string
  *                             example: "0.00"
- *                             description: The total amount contributed to the wishlist
  *                           contributorsCount:
  *                             type: integer
  *                             example: 0
- *                             description: The number of contributors to the wishlist
  *                           viewsCount:
  *                             type: integer
- *                             example: 1
- *                             description: The number of views of the wishlist
+ *                             example: 0
  *                           isPublic:
  *                             type: boolean
  *                             example: true
- *                             description: Indicates if the wishlist is public
+ *                           celebrationEvent:
+ *                             type: string
+ *                             example: "Birthday"
+ *                           celebrationDate:
+ *                             type: string
+ *                             format: date-time
+ *                             example: "2025-12-11T23:00:00.000Z"
  *                           expiresAt:
  *                             type: string
  *                             format: date-time
- *                             example: "2025-11-08T00:00:00.000Z"
- *                             description: The expiration date of the wishlist
+ *                             example: "2025-12-19T00:00:00.000Z"
  *                           userId:
  *                             type: string
  *                             format: uuid
- *                             example: "09127216-c1a9-468e-9a96-d712ab67edd9"
- *                             description: The ID of the user who created the wishlist
  *                           created_at:
  *                             type: string
  *                             format: date-time
- *                             example: "2025-10-07T04:05:40.192Z"
- *                             description: Timestamp when the wishlist was created
+ *                             example: "2025-11-29T03:47:06.166Z"
  *                       items:
  *                         type: array
  *                         items:
@@ -107,57 +106,68 @@ const router = express.Router();
  *                             id:
  *                               type: string
  *                               format: uuid
- *                               example: "fe66ca27-9b5d-4d94-8008-3db8e1e810fe"
- *                               description: The unique identifier of the wishlist item
  *                             name:
  *                               type: string
- *                               example: "Casual Denim Jacket"
- *                               description: The name of the wishlist item
+ *                               example: "Iphone 12 pro max"
  *                             imageUrl:
  *                               type: string
- *                               nullable: true
- *                               example: "https://i.guim.co.uk/img/media/18badfc0b64b09f917fd14bbe47d73fd92feeb27/189_335_5080_3048/master/5080.jpg?width=1200&height=1200&quality=85&auto=format&fit=crop&s=1562112c7a64da36ae0a5e75075a0d12"
- *                               description: The URL of the wishlist item's image
+ *                               example: "https://iphone.com"
  *                             price:
  *                               type: string
- *                               example: "85.00"
- *                               description: The price of the wishlist item
+ *                               example: "1500.00"
  *                             quantity:
  *                               type: integer
  *                               example: 1
- *                               description: The requested quantity of the wishlist item
- *                             quantityFulfilled:
- *                               type: integer
- *                               example: 0
- *                               description: The quantity of the wishlist item that has been fulfilled
  *                             amountContributed:
  *                               type: string
  *                               example: "0.00"
- *                               description: The total amount contributed towards the wishlist item
- *                             priority:
+ *                             totalContributed:
+ *                               type: string
+ *                               example: "0.00"
+ *                             contributorsCount:
  *                               type: integer
- *                               example: 1
- *                               description: The priority order of the wishlist item
+ *                               example: 0
+ *                             viewsCount:
+ *                               type: integer
+ *                               example: 0
+ *                             isFunded:
+ *                               type: boolean
+ *                               example: false
+ *                             fundedAt:
+ *                               type: string
+ *                               format: date-time
+ *                               nullable: true
+ *                             uniqueLink:
+ *                               type: string
+ *                               example: "https://joygiver.co/iphone-12-pro-max-_whlPOPSOU"
+ *                             availableBalance:
+ *                               type: string
+ *                               example: "0.00"
+ *                             pendingBalance:
+ *                               type: string
+ *                               example: "0.00"
+ *                             withdrawnAmount:
+ *                               type: string
+ *                               example: "0.00"
+ *                             isWithdrawable:
+ *                               type: boolean
+ *                               example: true
+ *                             lastWithdrawal:
+ *                               type: string
+ *                               format: date-time
+ *                               nullable: true
  *                             wishlistId:
  *                               type: string
  *                               format: uuid
- *                               example: "a2f42667-ba47-42e2-a3bb-57403a9132be"
- *                               description: The ID of the wishlist the item belongs to
  *                             curatedItemId:
  *                               type: string
  *                               format: uuid
- *                               example: "21af9187-2093-4ed0-b7ec-af694d550fe2"
- *                               description: The ID of the curated item
  *                             categoryId:
  *                               type: string
  *                               format: uuid
- *                               example: "17f1972c-231d-49f2-8988-5792a862d07c"
- *                               description: The ID of the category to which the item belongs
  *                             created_at:
  *                               type: string
  *                               format: date-time
- *                               example: "2025-10-07T04:05:40.254Z"
- *                               description: Timestamp when the wishlist item was created
  *                 message:
  *                   type: string
  *                   example: "Wishlist fetched successfully"
@@ -175,7 +185,7 @@ const router = express.Router();
  *                   type: string
  *                   example: "Unique link is required"
  *       403:
- *         description: Forbidden - Wishlist is not public or not active
+ *         description: Forbidden - Wishlist is private or not active
  *         content:
  *           application/json:
  *             schema:
@@ -972,22 +982,6 @@ router.get('/item-contributions', contributionController.getItemContributions);
  */
 router.get('/top-contributors', contributionController.getTopContributors);
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 router.use(protect);
 /**
  * @openapi
@@ -1413,16 +1407,6 @@ router.post('/update-category', categoryController.updateCategory);
  */
 router.post('/delete-category', categoryController.deleteCategory);
 
-
-
-
-
-
-
-
-
-
-
 /**
  * @openapi
  * /wishlist/create-item:
@@ -1594,13 +1578,13 @@ router.post('/create-item', multerUpload.single('image'), curatedItemController.
  *     summary: Get curated items (filtered by category, budget, and user's gender)
  *     description: >
  *       Retrieves a paginated list of curated items tailored to the authenticated user.
- *       
+ *
  *       • Items are filtered by the user's gender (unless the user has selected "prefer_not_to_say").
  *       • If the user's gender is "prefer_not_to_say", items from **all genders** are returned.
  *       • Supports filtering by one or more category IDs.
  *       • Use `categoryIds=all` (or omit the parameter) to fetch items from **all categories**.
  *       • Budget filtering is optional via `budgetMin` and `budgetMax`.
- *       
+ *
  *       **Important**: Passing `categoryIds=all` explicitly returns items from every category (same as omitting the parameter).
  *     tags:
  *       - Wishlist
@@ -1756,7 +1740,7 @@ router.get('/items', curatedItemController.getCuratedItems);
  *     summary: Update a curated item (Admin only)
  *     description: >
  *       Allows admins to partially update a curated item. All fields are optional — only provided fields will be updated.
- *       
+ *
  *       • Either `imageUrl` or an uploaded `file` can be used to update the image (uploading a file overrides imageUrl).
  *       • Gender must be one of: `male`, `female`, or `prefer_not_to_say`.
  *       • Price must be greater than 0 if provided.
@@ -2015,17 +1999,19 @@ router.post('/update-item', curatedItemController.updateCuratedItem);
 router.post('/delete-item', curatedItemController.deleteCuratedItem);
 //router.post('/seed-data', wishlistController.seedData);
 
-
-
-
-
-
 /**
  * @openapi
  * /wishlist/create:
  *   post:
  *     summary: Create a new wishlist
- *     description: Creates a new wishlist for the authenticated user with the specified celebration event, date, and optional items. Ensures the celebration date is not in the past and validates that items, if provided, are a non-empty array with valid curated item IDs. Generates a unique link for the wishlist and sets an expiration date 7 days after the celebration date. Uses a transaction to ensure atomicity when creating the wishlist and associated items.
+ *     description: >
+ *       Creates a new wishlist for the authenticated user. Requires all core fields and validates celebration date (must be in the future).
+ *
+ *       • Generates a unique public link: `https://joygiver.co/{slugified-event}-{6-char-id}`
+ *       • Wishlist automatically expires 7 days after the celebration date.
+ *       • Optional `items` array allows adding curated items at creation time.
+ *       • Each item in `items` must contain a valid `curatedItemId` that exists in the system.
+ *       • All operations are performed in a database transaction for consistency.
  *     tags:
  *       - Wishlist
  *     requestBody:
@@ -2034,30 +2020,52 @@ router.post('/delete-item', curatedItemController.deleteCuratedItem);
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - name
+ *               - description
+ *               - emoji
+ *               - colorTheme
+ *               - celebrationEvent
+ *               - celebrationDate
  *             properties:
+ *               name:
+ *                 type: string
+ *                 example: "My birthday wishlist"
+ *                 description: Name of the wishlist
+ *               description:
+ *                 type: string
+ *                 example: "My birthday wishlist description"
+ *                 description: Detailed description of the wishlist
+ *               emoji:
+ *                 type: string
+ *                 example: "birthday-cake"
+ *                 description: Emoji representing the wishlist
+ *               colorTheme:
+ *                 type: string
+ *                 example: "purple"
+ *                 description: Color theme for the wishlist UI
  *               celebrationEvent:
  *                 type: string
  *                 example: "Birthday"
- *                 description: The event associated with the wishlist
+ *                 description: Name of the celebration (e.g., Birthday, Wedding, Graduation)
  *               celebrationDate:
  *                 type: string
  *                 format: date-time
- *                 example: "2025-10-31T23:00:00.000Z"
- *                 description: The date of the celebration event
+ *                 example: "2025-12-11T23:00:00.000Z"
+ *                 description: Date and time of the celebration (must be in the future)
  *               items:
  *                 type: array
+ *                 description: Optional list of curated items to add immediately
  *                 items:
  *                   type: object
+ *                   required:
+ *                     - curatedItemId
  *                   properties:
  *                     curatedItemId:
  *                       type: string
  *                       format: uuid
- *                       example: "aecccb23-4d66-40f9-9849-2600c85fe3b1"
- *                       description: The ID of the curated item to add to the wishlist
- *                 description: Optional list of curated items to include in the wishlist
- *             required:
- *               - celebrationEvent
- *               - celebrationDate
+ *                       example: "35f8106c-c212-4719-8b4f-1e775faee29d"
+ *                       description: ID of an existing curated item
  *     responses:
  *       201:
  *         description: Wishlist created successfully
@@ -2077,62 +2085,66 @@ router.post('/delete-item', curatedItemController.deleteCuratedItem);
  *                       id:
  *                         type: string
  *                         format: uuid
- *                         example: "e9988d8b-d9c6-4dc8-aaf1-5d8e284eeae6"
- *                         description: The unique identifier of the wishlist
- *                       celebrationEvent:
+ *                         example: "f9b49a73-6d94-4afd-ab50-7c20ef0b6632"
+ *                       name:
  *                         type: string
- *                         example: "Birthday"
- *                         description: The event associated with the wishlist
- *                       celebrationDate:
+ *                         example: "My birthday wishlist"
+ *                       description:
  *                         type: string
- *                         format: date-time
- *                         example: "2025-10-31T23:00:00.000Z"
- *                         description: The date of the celebration event
+ *                         example: "My birthday wishlist description"
  *                       uniqueLink:
  *                         type: string
- *                         example: "https://joygiver.co/birthday-oB1J-V"
- *                         description: A unique URL for accessing the wishlist
+ *                         example: "https://joygiver.co/birthday-dwe1-F"
+ *                         description: Public shareable link for the wishlist
+ *                       emoji:
+ *                         type: string
+ *                         example: "birthday-cake"
+ *                       colorTheme:
+ *                         type: string
+ *                         example: "purple"
  *                       status:
  *                         type: string
+ *                         enum: [active, expired, completed]
  *                         example: "active"
- *                         description: The status of the wishlist
  *                       totalContributed:
  *                         type: string
  *                         example: "0.00"
- *                         description: The total amount contributed to the wishlist
+ *                         description: Total amount contributed so far
  *                       contributorsCount:
  *                         type: integer
  *                         example: 0
- *                         description: The number of contributors to the wishlist
  *                       viewsCount:
  *                         type: integer
  *                         example: 0
- *                         description: The number of views of the wishlist
  *                       isPublic:
  *                         type: boolean
  *                         example: true
- *                         description: Indicates if the wishlist is public
+ *                       celebrationEvent:
+ *                         type: string
+ *                         example: "Birthday"
+ *                       celebrationDate:
+ *                         type: string
+ *                         format: date-time
+ *                         example: "2025-12-11T23:00:00.000Z"
  *                       expiresAt:
  *                         type: string
  *                         format: date-time
- *                         example: "2025-11-08T00:00:00.000Z"
- *                         description: The expiration date of the wishlist
+ *                         example: "2025-12-19T00:00:00.000Z"
+ *                         description: Auto-set to 7 days after celebration date
  *                       userId:
  *                         type: string
  *                         format: uuid
- *                         example: "09127216-c1a9-468e-9a96-d712ab67edd9"
- *                         description: The ID of the user who created the wishlist
+ *                         example: "44ed85fb-901a-4102-ab00-e814108338dd"
  *                       created_at:
  *                         type: string
  *                         format: date-time
- *                         example: "2025-10-07T04:08:05.299Z"
- *                         description: Timestamp when the wishlist was created
+ *                         example: "2025-11-29T03:47:06.166Z"
  *                 message:
  *                   type: string
  *                   example: "Wishlist created successfully with items"
- *                   description: Confirmation message, varies based on whether items were included
+ *                   description: Message varies depending on whether items were added
  *       400:
- *         description: Bad Request - Missing required fields, past celebration date, or invalid items
+ *         description: Bad Request - Validation failed
  *         content:
  *           application/json:
  *             schema:
@@ -2143,9 +2155,9 @@ router.post('/delete-item', curatedItemController.deleteCuratedItem);
  *                   example: error
  *                 message:
  *                   type: string
- *                   example: "Celebration event and date are required"
+ *                   example: "Celebration date cannot be in the past"
  *       401:
- *         description: Unauthorized - User not logged in
+ *         description: Unauthorized - Not logged in
  *         content:
  *           application/json:
  *             schema:
@@ -2158,7 +2170,7 @@ router.post('/delete-item', curatedItemController.deleteCuratedItem);
  *                   type: string
  *                   example: "Please log in to create a wishlist"
  *       404:
- *         description: Not Found - Curated item not found
+ *         description: Not Found - One or more curated items not found
  *         content:
  *           application/json:
  *             schema:
@@ -2169,7 +2181,7 @@ router.post('/delete-item', curatedItemController.deleteCuratedItem);
  *                   example: error
  *                 message:
  *                   type: string
- *                   example: "Curated item with ID aecccb23-4d66-40f9-9849-2600c85fe3b1 not found"
+ *                   example: "Curated item with ID abc123 not found"
  *       500:
  *         description: Internal Server Error - Failed to create wishlist
  *         content:
@@ -2189,8 +2201,8 @@ router.post('/create', wishlistController.createWishlist);
  * @openapi
  * /wishlist/add-item:
  *   post:
- *     summary: Add items to an existing wishlist
- *     description: Adds one or more curated items to an existing wishlist specified by the wishlist ID. Only the authenticated user who owns the wishlist can add items. Each item must include a valid curated item ID, and the items are validated to ensure they exist before being added.
+ *     summary: Add items to user's wishlist
+ *     description: Adds one or more curated items to an existing wishlist. Only the wishlist owner can add items. Duplicates are not allowed. Each added item gets a unique public link.
  *     tags:
  *       - Wishlist
  *     requestBody:
@@ -2199,29 +2211,32 @@ router.post('/create', wishlistController.createWishlist);
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - wishlistId
+ *               - items
  *             properties:
  *               wishlistId:
  *                 type: string
  *                 format: uuid
- *                 example: "e9988d8b-d9c6-4dc8-aaf1-5d8e284eeae6"
- *                 description: The unique identifier of the wishlist to add items to
+ *                 example: "f9b49a73-6d94-4afd-ab50-7c20ef0b6632"
+ *                 description: ID of the wishlist to add items to
  *               items:
  *                 type: array
+ *                 minItems: 1
+ *                 description: Array of curated items to add
  *                 items:
  *                   type: object
+ *                   required:
+ *                     - curatedItemId
  *                   properties:
  *                     curatedItemId:
  *                       type: string
  *                       format: uuid
- *                       example: "b8f9c140-4edb-4c34-a2af-cec9458e92e7"
- *                       description: The ID of the curated item to add to the wishlist
- *                 description: List of curated items to add to the wishlist
- *             required:
- *               - wishlistId
- *               - items
+ *                       example: "31e32dfd-c1bc-4a0b-810f-9fb1b780bfde"
+ *                       description: ID of an existing curated item
  *     responses:
  *       201:
- *         description: Items added to wishlist successfully
+ *         description: Items added successfully
  *         content:
  *           application/json:
  *             schema:
@@ -2238,62 +2253,76 @@ router.post('/create', wishlistController.createWishlist);
  *                       id:
  *                         type: string
  *                         format: uuid
- *                         example: "3d3cf2a4-e217-49b6-b344-76a28c644f17"
- *                         description: The unique identifier of the wishlist item
+ *                         example: "101111df-4f28-4640-ab85-f11decdea7cb"
  *                       name:
  *                         type: string
- *                         example: "Bluetooth Speaker"
- *                         description: The name of the wishlist item
+ *                         example: "Iphone XR"
  *                       imageUrl:
  *                         type: string
- *                         nullable: true
- *                         example: "https://i.guim.co.uk/img/media/18badfc0b64b09f917fd14bbe47d73fd92feeb27/189_335_5080_3048/master/5080.jpg?width=1200&height=1200&quality=85&auto=format&fit=crop&s=1562112c7a64da36ae0a5e75075a0d12"
- *                         description: The URL of the wishlist item's image
+ *                         example: "https://iphone.com"
  *                       price:
  *                         type: string
- *                         example: "59.99"
- *                         description: The price of the wishlist item
+ *                         example: "500.00"
  *                       quantity:
  *                         type: integer
  *                         example: 1
- *                         description: The requested quantity of the wishlist item
- *                       quantityFulfilled:
- *                         type: integer
- *                         example: 0
- *                         description: The quantity of the wishlist item that has been fulfilled
  *                       amountContributed:
  *                         type: string
  *                         example: "0.00"
- *                         description: The total amount contributed towards the wishlist item
- *                       priority:
+ *                       totalContributed:
+ *                         type: string
+ *                         example: "0.00"
+ *                       contributorsCount:
  *                         type: integer
- *                         example: 1
- *                         description: The priority order of the wishlist item
+ *                         example: 0
+ *                       viewsCount:
+ *                         type: integer
+ *                         example: 0
+ *                       isFunded:
+ *                         type: boolean
+ *                         example: false
+ *                       fundedAt:
+ *                         type: string
+ *                         format: date-time
+ *                         nullable: true
+ *                       uniqueLink:
+ *                         type: string
+ *                         example: "https://joygiver.co/iphone-xr-SJilz9chsQ"
+ *                         description: Unique public link for this wishlist item
+ *                       availableBalance:
+ *                         type: string
+ *                         example: "0.00"
+ *                       pendingBalance:
+ *                         type: string
+ *                         example: "0.00"
+ *                       withdrawnAmount:
+ *                         type: string
+ *                         example: "0.00"
+ *                       isWithdrawable:
+ *                         type: boolean
+ *                         example: true
+ *                       lastWithdrawal:
+ *                         type: string
+ *                         format: date-time
+ *                         nullable: true
  *                       wishlistId:
  *                         type: string
  *                         format: uuid
- *                         example: "e9988d8b-d9c6-4dc8-aaf1-5d8e284eeae6"
- *                         description: The ID of the wishlist the item belongs to
  *                       curatedItemId:
  *                         type: string
  *                         format: uuid
- *                         example: "b8f9c140-4edb-4c34-a2af-cec9458e92e7"
- *                         description: The ID of the curated item
  *                       categoryId:
  *                         type: string
  *                         format: uuid
- *                         example: "9e104dd8-5455-4552-b8b8-0157352d3227"
- *                         description: The ID of the category to which the item belongs
  *                       created_at:
  *                         type: string
  *                         format: date-time
- *                         example: "2025-10-07T06:16:10.875Z"
- *                         description: Timestamp when the wishlist item was created
+ *                         example: "2025-11-29T04:15:56.480Z"
  *                 message:
  *                   type: string
  *                   example: "Items added to wishlist successfully"
  *       400:
- *         description: Bad Request - Missing wishlist ID, invalid items array, or missing curated item ID
+ *         description: Bad Request - Validation failed
  *         content:
  *           application/json:
  *             schema:
@@ -2306,7 +2335,7 @@ router.post('/create', wishlistController.createWishlist);
  *                   type: string
  *                   example: "Items array is required"
  *       401:
- *         description: Unauthorized - User not logged in
+ *         description: Unauthorized - Not logged in
  *         content:
  *           application/json:
  *             schema:
@@ -2319,7 +2348,7 @@ router.post('/create', wishlistController.createWishlist);
  *                   type: string
  *                   example: "Please log in to add items to a wishlist"
  *       403:
- *         description: Forbidden - User is not authorized to modify the wishlist
+ *         description: Forbidden - Not the wishlist owner
  *         content:
  *           application/json:
  *             schema:
@@ -2332,7 +2361,7 @@ router.post('/create', wishlistController.createWishlist);
  *                   type: string
  *                   example: "Unauthorized to modify this wishlist"
  *       404:
- *         description: Not Found - Wishlist or curated item not found
+ *         description: Not Found - Wishlist not found
  *         content:
  *           application/json:
  *             schema:
@@ -2345,7 +2374,7 @@ router.post('/create', wishlistController.createWishlist);
  *                   type: string
  *                   example: "Wishlist not found"
  *       500:
- *         description: Internal Server Error - Failed to add items to wishlist
+ *         description: Internal Server Error
  *         content:
  *           application/json:
  *             schema:
@@ -2362,15 +2391,15 @@ router.post('/add-item', wishlistItemController.addItemsToWishlist);
 
 /**
  * @openapi
- * /wishlist/user:
+ * /wishlist/my-wishlist:
  *   get:
- *     summary: Retrieve authenticated user's wishlists
- *     description: Fetches all wishlists belonging to the authenticated user, including associated items. The wishlist must be public and active to be retrieved. Returns the wishlist details along with its items.
+ *     summary: Get authenticated user's active wishlist
+ *     description: Returns the currently active and accessible wishlist belonging to the logged-in user along with all its items. Only returns the wishlist if it is public OR (if private) still has ACTIVE status.
  *     tags:
  *       - Wishlist
  *     responses:
  *       200:
- *         description: Wishlists fetched successfully
+ *         description: User's wishlist fetched successfully
  *         content:
  *           application/json:
  *             schema:
@@ -2390,56 +2419,55 @@ router.post('/add-item', wishlistItemController.addItemsToWishlist);
  *                           id:
  *                             type: string
  *                             format: uuid
- *                             example: "e9988d8b-d9c6-4dc8-aaf1-5d8e284eeae6"
- *                             description: The unique identifier of the wishlist
- *                           celebrationEvent:
+ *                             example: "f9b49a73-6d94-4afd-ab50-7c20ef0b6632"
+ *                           name:
  *                             type: string
- *                             example: "Birthday"
- *                             description: The event associated with the wishlist
- *                           celebrationDate:
+ *                             example: "My birthday wishlist"
+ *                           description:
  *                             type: string
- *                             format: date-time
- *                             example: "2025-10-31T23:00:00.000Z"
- *                             description: The date of the celebration event
+ *                             example: "My birthday wishlist description"
  *                           uniqueLink:
  *                             type: string
- *                             example: "https://joygiver.co/birthday-oB1J-V"
- *                             description: The unique URL for accessing the wishlist
+ *                             example: "https://joygiver.co/birthday-dwe1-F"
+ *                           emoji:
+ *                             type: string
+ *                             example: "emoji"
+ *                           colorTheme:
+ *                             type: string
+ *                             example: "colorTheme"
  *                           status:
  *                             type: string
  *                             example: "active"
- *                             description: The status of the wishlist
  *                           totalContributed:
  *                             type: string
  *                             example: "0.00"
- *                             description: The total amount contributed to the wishlist
  *                           contributorsCount:
  *                             type: integer
  *                             example: 0
- *                             description: The number of contributors to the wishlist
  *                           viewsCount:
  *                             type: integer
- *                             example: 0
- *                             description: The number of views of the wishlist
+ *                             example: 1
  *                           isPublic:
  *                             type: boolean
  *                             example: true
- *                             description: Indicates if the wishlist is public
+ *                           celebrationEvent:
+ *                             type: string
+ *                             example: "Birthday"
+ *                           celebrationDate:
+ *                             type: string
+ *                             format: date-time
+ *                             example: "2025-12-11T23:00:00.000Z"
  *                           expiresAt:
  *                             type: string
  *                             format: date-time
- *                             example: "2025-11-08T00:00:00.000Z"
- *                             description: The expiration date of the wishlist
+ *                             example: "2025-12-19T00:00:00.000Z"
  *                           userId:
  *                             type: string
  *                             format: uuid
- *                             example: "09127216-c1a9-468e-9a96-d712ab67edd9"
- *                             description: The ID of the user who created the wishlist
  *                           created_at:
  *                             type: string
  *                             format: date-time
- *                             example: "2025-10-07T04:08:05.299Z"
- *                             description: Timestamp when the wishlist was created
+ *                             example: "2025-11-29T03:47:06.166Z"
  *                       items:
  *                         type: array
  *                         items:
@@ -2448,309 +2476,71 @@ router.post('/add-item', wishlistItemController.addItemsToWishlist);
  *                             id:
  *                               type: string
  *                               format: uuid
- *                               example: "d65643e7-ad91-44a9-8d8b-d72f213bbfb3"
- *                               description: The unique identifier of the wishlist item
  *                             name:
  *                               type: string
- *                               example: "Business Strategy Book"
- *                               description: The name of the wishlist item
+ *                               example: "Iphone 12 pro max"
  *                             imageUrl:
  *                               type: string
- *                               nullable: true
- *                               example: "https://i.guim.co.uk/img/media/18badfc0b64b09f917fd14bbe47d73fd92feeb27/189_335_5080_3048/master/5080.jpg?width=1200&height=1200&quality=85&auto=format&fit=crop&s=1562112c7a64da36ae0a5e75075a0d12"
- *                               description: The URL of the wishlist item's image
+ *                               example: "https://iphone.com"
  *                             price:
  *                               type: string
- *                               example: "25.00"
- *                               description: The price of the wishlist item
+ *                               example: "1500.00"
  *                             quantity:
  *                               type: integer
  *                               example: 1
- *                               description: The requested quantity of the wishlist item
- *                             quantityFulfilled:
- *                               type: integer
- *                               example: 0
- *                               description: The quantity of the wishlist item that has been fulfilled
  *                             amountContributed:
  *                               type: string
  *                               example: "0.00"
- *                               description: The total amount contributed towards the wishlist item
- *                             priority:
+ *                             totalContributed:
+ *                               type: string
+ *                               example: "0.00"
+ *                             contributorsCount:
  *                               type: integer
- *                               example: 4
- *                               description: The priority order of the wishlist item
+ *                               example: 0
+ *                             viewsCount:
+ *                               type: integer
+ *                               example: 0
+ *                             isFunded:
+ *                               type: boolean
+ *                               example: false
+ *                             fundedAt:
+ *                               type: string
+ *                               format: date-time
+ *                               nullable: true
+ *                             uniqueLink:
+ *                               type: string
+ *                               example: "https://joygiver.co/iphone-12-pro-max-_whlPOPSOU"
+ *                             availableBalance:
+ *                               type: string
+ *                               example: "0.00"
+ *                             pendingBalance:
+ *                               type: string
+ *                               example: "0.00"
+ *                             withdrawnAmount:
+ *                               type: string
+ *                               example: "0.00"
+ *                             isWithdrawable:
+ *                               type: boolean
+ *                               example: true
+ *                             lastWithdrawal:
+ *                               type: string
+ *                               format: date-time
+ *                               nullable: true
  *                             wishlistId:
  *                               type: string
  *                               format: uuid
- *                               example: "e9988d8b-d9c6-4dc8-aaf1-5d8e284eeae6"
- *                               description: The ID of the wishlist the item belongs to
  *                             curatedItemId:
  *                               type: string
  *                               format: uuid
- *                               example: "0e066f7c-004d-4756-b2bc-665133333247"
- *                               description: The ID of the curated item
  *                             categoryId:
  *                               type: string
  *                               format: uuid
- *                               example: "02929535-d11d-433e-afd8-07aca0dc19f2"
- *                               description: The ID of the category to which the item belongs
  *                             created_at:
  *                               type: string
  *                               format: date-time
- *                               example: "2025-10-07T06:17:25.742Z"
- *                               description: Timestamp when the wishlist item was created
  *                 message:
  *                   type: string
  *                   example: "Wishlists fetched successfully"
- *       403:
- *         description: Forbidden - Wishlist is not public or not active
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: error
- *                 message:
- *                   type: string
- *                   example: "This wishlist is not available"
- *       404:
- *         description: Not Found - User, wishlist, or items not found
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: error
- *                 message:
- *                   type: string
- *                   example: "User not found"
- */
-router.get('/user', wishlistController.getUserWishlist);
-/**
- * @openapi
- * /wishlist/stats:
- *   get:
- *     summary: Retrieve statistics for a wishlist
- *     description: Fetches statistics for a specific wishlist, including total contributions, contributor count, view count, item count, funded item count, completion percentage, and top contributors. Requires the wishlist ID as a query parameter.
- *     tags:
- *       - Wishlist
- *     parameters:
- *       - in: query
- *         name: wishlistId
- *         schema:
- *           type: string
- *           format: uuid
- *           example: "e9988d8b-d9c6-4dc8-aaf1-5d8e284eeae6"
- *         required: true
- *         description: The unique identifier of the wishlist
- *     responses:
- *       200:
- *         description: Wishlist stats retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 data:
- *                   type: object
- *                   properties:
- *                     totalContributed:
- *                       type: string
- *                       example: "0.00"
- *                       description: The total amount contributed towards the wishlist
- *                     contributorsCount:
- *                       type: integer
- *                       example: 0
- *                       description: The number of contributors to the wishlist
- *                     viewsCount:
- *                       type: integer
- *                       example: 0
- *                       description: The number of views of the wishlist
- *                     itemsCount:
- *                       type: integer
- *                       example: 12
- *                       description: The total number of items in the wishlist
- *                     fundedItemsCount:
- *                       type: integer
- *                       example: 0
- *                       description: The number of fully funded items in the wishlist
- *                     completionPercentage:
- *                       type: integer
- *                       example: 0
- *                       description: The percentage of the wishlist's funding goal achieved (capped at 100)
- *                     topContributors:
- *                       type: array
- *                       items:
- *                         type: object
- *                         properties:
- *                           name:
- *                             type: string
- *                             example: "Anonymous"
- *                             description: The name of the contributor (or 'Anonymous' if anonymous)
- *                           amount:
- *                             type: string
- *                             example: "0.00"
- *                             description: The amount contributed by the supporter
- *                           date:
- *                             type: string
- *                             format: date-time
- *                             example: "2025-10-07T04:08:05.376Z"
- *                             description: Timestamp of the contribution
- *                           message:
- *                             type: string
- *                             nullable: true
- *                             example: null
- *                             description: Optional message provided by the contributor
- *                       description: List of top contributors to the wishlist
- *                 message:
- *                   type: string
- *                   example: "Wishlist stats retrieved successfully"
- *       401:
- *         description: Bad Request - Missing wishlist ID
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: error
- *                 message:
- *                   type: string
- *                   example: "Wishlist ID is required"
- */
-router.get('/stats', wishlistController.getWishlistStats);
-/**
- * @openapi
- * /wishlist/withdraw-all-funds:
- *   post:
- *     summary: Withdraw all available funds from a wishlist
- *     description: Withdraws all available balances from every withdrawable item in the specified wishlist that has funds. Requires user authentication and ownership of the wishlist. Returns total amount withdrawn, number of items processed, and details of each withdrawal.
- *     tags:
- *       - Wishlist
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               wishlistId:
- *                 type: string
- *                 format: uuid
- *                 example: "e9988d8b-d9c6-4dc8-aaf1-5d8e284eeae6"
- *                 description: The unique identifier of the wishlist to withdraw from
- *             required:
- *               - wishlistId
- *     responses:
- *       200:
- *         description: Funds withdrawn successfully from all eligible items
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 data:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       totalWithdrawn:
- *                         type: number
- *                         example: 124.99
- *                         description: Total amount withdrawn across all items
- *                       itemsWithdrawn:
- *                         type: integer
- *                         example: 2
- *                         description: Number of wishlist items from which funds were withdrawn
- *                       withdrawals:
- *                         type: array
- *                         items:
- *                           type: object
- *                           properties:
- *                             id:
- *                               type: string
- *                               format: uuid
- *                               example: "b28bc82f-e57a-4aad-94e6-c353cb94fe77"
- *                               description: The unique identifier of the withdrawal record
- *                             wishlistItemId:
- *                               type: string
- *                               format: uuid
- *                               example: "f423e5a5-1d07-4dbd-a3f1-a787d96cb25c"
- *                               description: The ID of the wishlist item
- *                             wishlistId:
- *                               type: string
- *                               format: uuid
- *                               example: "e9988d8b-d9c6-4dc8-aaf1-5d8e284eeae6"
- *                               description: The ID of the wishlist
- *                             userId:
- *                               type: string
- *                               format: uuid
- *                               example: "09127216-c1a9-468e-9a96-d712ab67edd9"
- *                               description: The ID of the user who owns the wishlist
- *                             walletId:
- *                               type: string
- *                               format: uuid
- *                               example: "f8a12d2f-7e7b-484c-b0e4-d2839c459027"
- *                               description: The ID of the wallet receiving the funds
- *                             amount:
- *                               type: string
- *                               example: "35.00"
- *                               description: The amount withdrawn from this item
- *                             status:
- *                               type: string
- *                               example: "completed"
- *                               description: The status of the withdrawal
- *                             reference:
- *                               type: string
- *                               example: "ITWH-aXjbQDKqabrpBmhe"
- *                               description: Unique reference for the withdrawal
- *                             note:
- *                               type: string
- *                               nullable: true
- *                               example: null
- *                               description: Optional note (not used)
- *                             processedAt:
- *                               type: string
- *                               format: date-time
- *                               example: "2025-10-21T07:46:30.406Z"
- *                               description: Timestamp when withdrawal was processed
- *                             created_at:
- *                               type: string
- *                               format: date-time
- *                               example: "2025-10-21T07:46:30.381Z"
- *                               description: Timestamp when record was created
- *                             updated_at:
- *                               type: string
- *                               format: date-time
- *                               example: "2025-10-21T07:46:30.381Z"
- *                               description: Timestamp when record was last updated
- *                 message:
- *                   type: string
- *                   example: "Withdrawn ₦124.99 from 2 items"
- *       400:
- *         description: Bad Request - Missing wishlist ID or no funds available
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: error
- *                 message:
- *                   type: string
- *                   example: "No funds available to withdraw"
  *       401:
  *         description: Unauthorized - User not logged in
  *         content:
@@ -2763,9 +2553,9 @@ router.get('/stats', wishlistController.getWishlistStats);
  *                   example: error
  *                 message:
  *                   type: string
- *                   example: "Please log in"
+ *                   example: "Please login to view your wishlists"
  *       403:
- *         description: Forbidden - User does not own the wishlist
+ *         description: Forbidden - Wishlist is private and not active
  *         content:
  *           application/json:
  *             schema:
@@ -2776,9 +2566,9 @@ router.get('/stats', wishlistController.getWishlistStats);
  *                   example: error
  *                 message:
  *                   type: string
- *                   example: "Unauthorized"
+ *                   example: "This wishlist is not available"
  *       404:
- *         description: Not Found - Wishlist not found
+ *         description: Not Found - No wishlist or items found
  *         content:
  *           application/json:
  *             schema:
@@ -2789,8 +2579,11 @@ router.get('/stats', wishlistController.getWishlistStats);
  *                   example: error
  *                 message:
  *                   type: string
- *                   example: "Wishlist not found"
+ *                   example: "No wishlists found for this user"
  */
+router.get('/my-wishlist', wishlistController.getUserWishlist);
+
+router.get('/stats', wishlistController.getWishlistStats);
 router.post('/withdraw-all-funds', wishlistController.withdrawAllFromWishlist);
 /**
  * @openapi
@@ -2935,365 +2728,9 @@ router.post('/withdraw-all-funds', wishlistController.withdrawAllFromWishlist);
  *                   example: "Wishlist not found"
  */
 router.get('/item', wishlistItemController.getItemByLink);
-/**
- * @openapi
- * /wishlist/item-stats:
- *   get:
- *     summary: Retrieve statistics for a wishlist item
- *     description: Fetches statistics for a specific wishlist item, including total contributions, contributor count, view count, completion percentage, funding status, and recent supporters (up to 5). Requires the wishlist item ID as a query parameter.
- *     tags:
- *       - Wishlist
- *     parameters:
- *       - in: query
- *         name: wishlistItemId
- *         schema:
- *           type: string
- *           format: uuid
- *           example: "220031d9-b808-4f5a-a811-8c5a6271ecc7"
- *         required: true
- *         description: The unique identifier of the wishlist item
- *     responses:
- *       200:
- *         description: Wishlist stats retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 data:
- *                   type: object
- *                   properties:
- *                     totalContributed:
- *                       type: string
- *                       example: "0.00"
- *                       description: The total amount contributed towards the wishlist item
- *                     contributorsCount:
- *                       type: integer
- *                       example: 0
- *                       description: The number of contributors to the wishlist item
- *                     viewsCount:
- *                       type: integer
- *                       example: 13
- *                       description: The number of views of the wishlist item
- *                     completionPercentage:
- *                       type: integer
- *                       example: 0
- *                       description: The percentage of the wishlist item's funding goal achieved (capped at 100)
- *                     isFunded:
- *                       type: boolean
- *                       example: false
- *                       description: Indicates if the wishlist item is fully funded
- *                     recentSupporters:
- *                       type: array
- *                       items:
- *                         type: object
- *                         properties:
- *                           name:
- *                             type: string
- *                             example: "Anonymous"
- *                             description: The name of the contributor (or 'Anonymous' if anonymous)
- *                           amount:
- *                             type: string
- *                             example: "0.00"
- *                             description: The amount contributed by the supporter
- *                           date:
- *                             type: string
- *                             format: date-time
- *                             example: "2025-10-07T04:08:05.376Z"
- *                             description: Timestamp of the contribution
- *                           message:
- *                             type: string
- *                             nullable: true
- *                             example: null
- *                             description: Optional message provided by the contributor
- *                       description: List of recent supporters (up to 5)
- *                 message:
- *                   type: string
- *                   example: "Wishlist stats retrieved successfully"
- *       401:
- *         description: Bad Request - Missing wishlist item ID
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: error
- *                 message:
- *                   type: string
- *                   example: "Wishlist item ID is required"
- *       404:
- *         description: Not Found - Wishlist item not found
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: error
- *                 message:
- *                   type: string
- *                   example: "Wishlist item not found"
- */
+
 router.get('/item-stats', wishlistItemController.getWishlistItemStats);
-/**
- * @openapi
- * /wishlist/item-withdraw:
- *   post:
- *     summary: Withdraw funds from a wishlist item
- *     description: Allows the wishlist owner to withdraw available funds from a specific wishlist item to their wallet. If no amount is specified, withdraws the full available balance. Minimum withdrawal is ₦100. Requires user authentication and ownership of the wishlist.
- *     tags:
- *       - Wishlist
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               wishlistItemId:
- *                 type: string
- *                 format: uuid
- *                 example: "220031d9-b808-4f5a-a811-8c5a6271ecc7"
- *                 description: The unique identifier of the wishlist item to withdraw from
- *               amount:
- *                 type: number
- *                 example: 150
- *                 description: The amount to withdraw (optional). If omitted, withdraws full available balance. Must be at least ₦100.
- *             required:
- *               - wishlistItemId
- *     responses:
- *       200:
- *         description: Funds withdrawn successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 data:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       id:
- *                         type: string
- *                         format: uuid
- *                         example: "08893e68-b7dd-4134-a027-0e2605425b2b"
- *                         description: The unique identifier of the withdrawal record
- *                       wishlistItemId:
- *                         type: string
- *                         format: uuid
- *                         example: "220031d9-b808-4f5a-a811-8c5a6271ecc7"
- *                         description: The ID of the wishlist item
- *                       wishlistId:
- *                         type: string
- *                         format: uuid
- *                         example: "e9988d8b-d9c6-4dc8-aaf1-5d8e284eeae6"
- *                         description: The ID of the parent wishlist
- *                       userId:
- *                         type: string
- *                         format: uuid
- *                         example: "09127216-c1a9-468e-9a96-d712ab67edd9"
- *                         description: The ID of the user who owns the wishlist
- *                       walletId:
- *                         type: string
- *                         format: uuid
- *                         example: "f8a12d2f-7e7b-484c-b0e4-d2839c459027"
- *                         description: The ID of the user's wallet receiving the funds
- *                       amount:
- *                         type: string
- *                         example: "150.00"
- *                         description: The amount withdrawn
- *                       status:
- *                         type: string
- *                         example: "completed"
- *                         description: The status of the withdrawal (completed immediately)
- *                       reference:
- *                         type: string
- *                         example: "ITWH-uwYvU5kh7IBLFwe3"
- *                         description: Unique reference for the withdrawal transaction
- *                       note:
- *                         type: string
- *                         nullable: true
- *                         example: null
- *                         description: Optional note (not used in current implementation)
- *                       processedAt:
- *                         type: string
- *                         format: date-time
- *                         example: "2025-10-21T06:30:25.025Z"
- *                         description: Timestamp when the withdrawal was processed
- *                       created_at:
- *                         type: string
- *                         format: date-time
- *                         example: "2025-10-21T06:30:25.015Z"
- *                         description: Timestamp when the withdrawal record was created
- *                 message:
- *                   type: string
- *                   example: "Funds withdrawn successfully"
- *       400:
- *         description: Bad Request - Invalid amount, insufficient balance, or item not withdrawable
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: error
- *                 message:
- *                   type: string
- *                   example: "Minimum withdrawal amount is ₦100"
- *       401:
- *         description: Unauthorized - User not logged in
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: error
- *                 message:
- *                   type: string
- *                   example: "Please log in"
- *       403:
- *         description: Forbidden - User does not own the wishlist
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: error
- *                 message:
- *                   type: string
- *                   example: "Unauthorized - you do not own this wishlist"
- *       404:
- *         description: Not Found - Wishlist item, wishlist, or wallet not found
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: error
- *                 message:
- *                   type: string
- *                   example: "Wishlist item not found"
- */
 router.post('/item-withdraw', wishlistItemController.withdrawFromItem);
-/**
- * @openapi
- * /wishlist//item-balance:
- *   get:
- *     summary: Retrieve balance summary for a wishlist item
- *     description: Fetches the current balance summary of a specific wishlist item, including total contributed, available, pending, withdrawn amounts, and withdrawal eligibility. Requires user authentication.
- *     tags:
- *       - Wishlist
- *     parameters:
- *       - in: query
- *         name: wishlistItemId
- *         schema:
- *           type: string
- *           format: uuid
- *           example: "220031d9-b808-4f5a-a811-8c5a6271ecc7"
- *         required: true
- *         description: The unique identifier of the wishlist item
- *     responses:
- *       200:
- *         description: Item balance retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 data:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       totalContributed:
- *                         type: string
- *                         example: "300.00"
- *                         description: Total amount contributed to the item
- *                       availableBalance:
- *                         type: string
- *                         example: "0.00"
- *                         description: Amount currently available for withdrawal
- *                       pendingBalance:
- *                         type: string
- *                         example: "0.00"
- *                         description: Amount in pending state (not yet withdrawable)
- *                       withdrawnAmount:
- *                         type: string
- *                         example: "300.00"
- *                         description: Total amount already withdrawn from the item
- *                       isWithdrawable:
- *                         type: boolean
- *                         example: true
- *                         description: Whether the item allows withdrawals
- *                       lastWithdrawal:
- *                         type: string
- *                         format: date-time
- *                         nullable: true
- *                         example: "2025-10-21T06:30:25.017Z"
- *                         description: Timestamp of the last withdrawal (null if none)
- *                 message:
- *                   type: string
- *                   example: "Item balance retrieved successfully"
- *       400:
- *         description: Bad Request - Missing wishlist item ID
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: error
- *                 message:
- *                   type: string
- *                   example: "Wishlist Item ID is required"
- *       401:
- *         description: Unauthorized - User not logged in
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: error
- *                 message:
- *                   type: string
- *                   example: "Please log in"
- *       404:
- *         description: Not Found - Wishlist item not found
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: error
- *                 message:
- *                   type: string
- *                   example: "Wishlist item not found"
- */
 router.get('/item-balance', wishlistItemController.getItemBalance);
 /**
  * @openapi

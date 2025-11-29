@@ -106,7 +106,7 @@ export class WishlistController {
 				const fetchedItems = await curatedItemRepository.findByIds(curatedItemIds);
 				const fetchedItemsMap = new Map(fetchedItems.map((item) => [item.id, item]));
 
-				const wishlistItems = items.map((item: { curatedItemId: string }, index: number) => {
+				const wishlistItems = items.map((item: { curatedItemId: string }) => {
 					const curated = fetchedItemsMap.get(item.curatedItemId);
 					if (!curated) {
 						throw new AppError(`Curated item with ID ${item.curatedItemId} not found`, 404);
@@ -125,7 +125,6 @@ export class WishlistController {
 						imageUrl: curated.imageUrl,
 						price: curated.price,
 						categoryId: curated.categoryId,
-						priority: index + 1,
 						uniqueLink,
 					};
 				});
@@ -210,6 +209,7 @@ export class WishlistController {
 		);
 	});
 
+	/// document these 2
 	getWishlistStats = catchAsync(async (req: Request, res: Response) => {
 		const { wishlistId } = req.query;
 
