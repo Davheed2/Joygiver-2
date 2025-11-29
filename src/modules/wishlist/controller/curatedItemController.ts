@@ -21,6 +21,9 @@ export class CuratedItemController {
 		if (price <= 0) {
 			throw new AppError('Price must be greater than 0', 400);
 		}
+		if (!imageFile && !imageUrl) {
+			throw new AppError('Either image file or image URL is required', 400);
+		}
 
 		const category = await categoryRepository.findById(categoryId);
 		if (!category) {
@@ -31,11 +34,11 @@ export class CuratedItemController {
 		const itemType = isAdmin ? 'global' : 'custom';
 		const isPublic = isAdmin;
 
-		if (isAdmin) {
-			if (!gender) {
-				throw new AppError('Gender is required for global curated items', 400);
-			}
-		}
+		// if (isAdmin) {
+		// 	if (!gender) {
+		// 		throw new AppError('Gender is required for global curated items', 400);
+		// 	}
+		// }
 
 		const genderMap: Record<string, Gender> = {
 			male: Gender.MALE,
@@ -43,12 +46,13 @@ export class CuratedItemController {
 			prefer_not_to_say: Gender.PREFER_NOT_TO_SAY,
 		};
 
-		const mappedGender = genderMap[gender.toLowerCase()];
-		if (!mappedGender) {
+		const mappedGender = gender ? genderMap[gender.toLowerCase()] : Gender.PREFER_NOT_TO_SAY;
+		if (gender && !mappedGender) {
 			throw new AppError('Invalid gender. Must be male, female, or prefer_not_to_say', 400);
 		}
 
 		const assignedGender = isAdmin ? mappedGender : user.gender;
+		console.log('Assigned Gender:', assignedGender);
 
 		let finalImageUrl: string | undefined = undefined;
 		if (imageFile) {
@@ -67,7 +71,7 @@ export class CuratedItemController {
 			name,
 			imageUrl: finalImageUrl,
 			price: parseFloat(price),
-			categoryId: categoryId,
+			categoryId,
 			gender: assignedGender,
 			popularity: 0,
 			isActive: true,
@@ -91,11 +95,16 @@ export class CuratedItemController {
 			throw new AppError('Please log in to get curated items', 401);
 		}
 
-		let categoryArray: string[] | undefined;
+		let categoryArray: string[] | 'all' = 'all';
 		if (categoryIds) {
 			const categoryArrayRaw = typeof categoryIds === 'string' ? categoryIds.split(',') : categoryIds;
-			categoryArray = Array.isArray(categoryArrayRaw) ? categoryArrayRaw.map((c) => String(c)) : [];
-			if (categoryArray.length === 0) {
+			const parsedCategories = Array.isArray(categoryArrayRaw) ? categoryArrayRaw.map((c) => String(c)) : [];
+
+			if (parsedCategories.length === 1 && parsedCategories[0].toLowerCase() === 'all') {
+				categoryArray = 'all';
+			} else if (parsedCategories.length > 0) {
+				categoryArray = parsedCategories;
+			} else {
 				throw new AppError('If categoryIds is provided, at least one category is required', 400);
 			}
 		}

@@ -1412,12 +1412,23 @@ router.post('/update-category', categoryController.updateCategory);
  *                   example: "Failed to delete category"
  */
 router.post('/delete-category', categoryController.deleteCategory);
+
+
+
+
+
+
+
+
+
+
+
 /**
  * @openapi
  * /wishlist/create-item:
  *   post:
  *     summary: Create a new curated item
- *     description: Creates a new curated item for the wishlist with the provided name, price, category ID, gender, and optional image URL or file. Only authenticated users with admin privileges can create curated items. The price must be greater than 0, and the gender must be one of 'male', 'female', or 'prefer_not_to_say'. The image can be provided either as a URL or an uploaded file.
+ *     description: Creates a new curated item (global or custom). Only authenticated users can create items. Admins create **global** public items (visible to all users), while regular users create **custom** private items. Gender is automatically set from the user's profile for custom items. For global items, gender can be explicitly provided (male, female, or prefer_not_to_say). Either an image file or imageUrl must be provided.
  *     tags:
  *       - Wishlist
  *     requestBody:
@@ -1429,36 +1440,35 @@ router.post('/delete-category', categoryController.deleteCategory);
  *             properties:
  *               name:
  *                 type: string
- *                 example: "Laptop"
+ *                 example: "Iphone XR"
  *                 description: The name of the curated item
  *               price:
  *                 type: string
- *                 example: "300000.00"
- *                 description: The price of the curated item (must be greater than 0)
+ *                 example: "500.00"
+ *                 description: The price of the item as a string (must be greater than 0)
  *               categoryId:
  *                 type: string
  *                 format: uuid
- *                 example: "68f8b8c3-d071-4bcb-8811-65d4efedfbb4"
- *                 description: The ID of the category to which the item belongs
+ *                 example: "94c25650-72ec-4551-b6c8-3255198043d2"
+ *                 description: The ID of the category the item belongs to
  *               gender:
  *                 type: string
  *                 enum: [male, female, prefer_not_to_say]
- *                 example: "male"
- *                 description: The gender associated with the curated item
+ *                 example: "female"
+ *                 description: Gender for global items (admin only). Ignored for custom items (uses user's gender). Defaults to 'prefer_not_to_say' if not provided by admin.
  *               imageUrl:
  *                 type: string
  *                 nullable: true
- *                 example: "https://pub-b3c115b60ec04ceaae8ac7360bf42530.r2.dev/curated-item/1759733504850-image 13.png"
- *                 description: The URL of the curated item's image (optional if file is provided)
+ *                 example: "https://iphone.com"
+ *                 description: Direct URL to the item image (optional if file is uploaded)
  *               file:
  *                 type: string
  *                 format: binary
- *                 description: The image file for the curated item (optional if imageUrl is provided)
+ *                 description: Image file to upload (optional if imageUrl is provided)
  *             required:
  *               - name
  *               - price
  *               - categoryId
- *               - gender
  *     responses:
  *       201:
  *         description: Curated item created successfully
@@ -1478,48 +1488,53 @@ router.post('/delete-category', categoryController.deleteCategory);
  *                       id:
  *                         type: string
  *                         format: uuid
- *                         example: "aecccb23-4d66-40f9-9849-2600c85fe3b1"
- *                         description: The unique identifier of the curated item
+ *                         example: "31e32dfd-c1bc-4a0b-810f-9fb1b780bfde"
  *                       name:
  *                         type: string
- *                         example: "Laptop"
- *                         description: The name of the curated item
+ *                         example: "Iphone XR"
  *                       imageUrl:
  *                         type: string
- *                         nullable: true
- *                         example: "https://pub-b3c115b60ec04ceaae8ac7360bf42530.r2.dev/curated-item/1759733504850-image 13.png"
- *                         description: The URL of the curated item's image
+ *                         example: "https://iphone.com"
  *                       price:
  *                         type: string
- *                         example: "300000.00"
- *                         description: The price of the curated item
- *                       gender:
- *                         type: string
- *                         example: "male"
- *                         description: The gender associated with the curated item
+ *                         example: "500.00"
  *                       popularity:
  *                         type: integer
  *                         example: 0
- *                         description: The popularity score of the curated item
  *                       isActive:
  *                         type: boolean
  *                         example: true
- *                         description: Indicates if the curated item is active
+ *                       itemType:
+ *                         type: string
+ *                         enum: [global, custom]
+ *                         example: "global"
+ *                         description: global for admin-created items, custom for user-created
+ *                       gender:
+ *                         type: string
+ *                         enum: [MALE, FEMALE, PREFER_NOT_TO_SAY]
+ *                         example: "female"
+ *                       isPublic:
+ *                         type: boolean
+ *                         example: true
+ *                         description: true for global items, false for custom items
  *                       categoryId:
  *                         type: string
  *                         format: uuid
- *                         example: "68f8b8c3-d071-4bcb-8811-65d4efedfbb4"
- *                         description: The ID of the category to which the item belongs
+ *                         example: "94c25650-72ec-4551-b6c8-3255198043d2"
+ *                       createdBy:
+ *                         type: string
+ *                         format: uuid
+ *                         example: "44ed85fb-901a-4102-ab00-e814108338dd"
+ *                         description: ID of the user who created the item
  *                       created_at:
  *                         type: string
  *                         format: date-time
- *                         example: "2025-10-06T06:51:46.342Z"
- *                         description: Timestamp when the curated item was created
+ *                         example: "2025-11-28T13:53:51.305Z"
  *                 message:
  *                   type: string
  *                   example: "Curated item created successfully"
  *       400:
- *         description: Bad Request - Missing required fields, invalid price, or invalid gender
+ *         description: Bad Request - Validation errors
  *         content:
  *           application/json:
  *             schema:
@@ -1530,9 +1545,9 @@ router.post('/delete-category', categoryController.deleteCategory);
  *                   example: error
  *                 message:
  *                   type: string
- *                   example: "Name, price, category, and gender are required"
+ *                   example: "Either image file or image URL is required"
  *       401:
- *         description: Unauthorized - User not logged in
+ *         description: Unauthorized - Not logged in
  *         content:
  *           application/json:
  *             schema:
@@ -1544,21 +1559,8 @@ router.post('/delete-category', categoryController.deleteCategory);
  *                 message:
  *                   type: string
  *                   example: "Please log in to create a curated item"
- *       403:
- *         description: Forbidden - User is not an admin
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: error
- *                 message:
- *                   type: string
- *                   example: "Only admins can create curated items"
  *       404:
- *         description: Not Found - Category not found
+ *         description: Not Found - Category does not exist
  *         content:
  *           application/json:
  *             schema:
@@ -1571,7 +1573,7 @@ router.post('/delete-category', categoryController.deleteCategory);
  *                   type: string
  *                   example: "Category not found"
  *       500:
- *         description: Internal Server Error - Failed to create curated item
+ *         description: Internal Server Error
  *         content:
  *           application/json:
  *             schema:
@@ -1589,8 +1591,17 @@ router.post('/create-item', multerUpload.single('image'), curatedItemController.
  * @openapi
  * /wishlist/items:
  *   get:
- *     summary: Retrieve curated items
- *     description: Fetches curated items based on optional filters such as category IDs, budget range, and pagination parameters. Filters items by the authenticated user's gender unless the gender is 'prefer not to say', in which case items for all genders are returned. Requires user authentication.
+ *     summary: Get curated items (filtered by category, budget, and user's gender)
+ *     description: >
+ *       Retrieves a paginated list of curated items tailored to the authenticated user.
+ *       
+ *       • Items are filtered by the user's gender (unless the user has selected "prefer_not_to_say").
+ *       • If the user's gender is "prefer_not_to_say", items from **all genders** are returned.
+ *       • Supports filtering by one or more category IDs.
+ *       • Use `categoryIds=all` (or omit the parameter) to fetch items from **all categories**.
+ *       • Budget filtering is optional via `budgetMin` and `budgetMax`.
+ *       
+ *       **Important**: Passing `categoryIds=all` explicitly returns items from every category (same as omitting the parameter).
  *     tags:
  *       - Wishlist
  *     parameters:
@@ -1598,30 +1609,38 @@ router.post('/create-item', multerUpload.single('image'), curatedItemController.
  *         name: categoryIds
  *         schema:
  *           type: string
- *           example: "68f8b8c3-d071-4bcb-8811-65d4efedfbb4,644ec540-e3d2-4275-a1b7-c9aaa81ca6de"
- *         description: Comma-separated list of category IDs to filter items
+ *         example: "94c25650-72ec-4551-b6c8-3255198043d2,68f8b8c3-d071-4bcb-8811-65d4efedfbb4"
+ *         description: >
+ *           Comma-separated list of category UUIDs to filter items.
+ *           Use `all` to include items from **all categories** (recommended and explicit way).
+ *           If omitted, behaves the same as `all`.
  *       - in: query
  *         name: budgetMin
  *         schema:
- *           type: string
- *           example: "100000"
- *         description: Minimum price for filtering items
+ *           type: number
+ *           minimum: 0
+ *         example: 500
+ *         description: Minimum price filter (inclusive)
  *       - in: query
  *         name: budgetMax
  *         schema:
- *           type: string
- *           example: "600000"
- *         description: Maximum price for filtering items
+ *           type: number
+ *           minimum: 0
+ *         example: 2000
+ *         description: Maximum price filter (inclusive). Must be greater than budgetMin.
  *       - in: query
  *         name: page
  *         schema:
  *           type: integer
+ *           minimum: 1
  *           default: 1
  *         description: Page number for pagination
  *       - in: query
  *         name: limit
  *         schema:
  *           type: integer
+ *           minimum: 1
+ *           maximum: 100
  *           default: 20
  *         description: Number of items per page
  *     responses:
@@ -1646,58 +1665,49 @@ router.post('/create-item', multerUpload.single('image'), curatedItemController.
  *                           id:
  *                             type: string
  *                             format: uuid
- *                             example: "7e676ba5-2ed5-4b80-b25b-96609d401d13"
- *                             description: The unique identifier of the curated item
+ *                             example: "da545e55-13a8-4c59-bf73-9de9519b1bc0"
  *                           name:
  *                             type: string
- *                             example: "Iphone"
- *                             description: The name of the curated item
+ *                             example: "Iphone 12 pro max"
  *                           imageUrl:
  *                             type: string
- *                             nullable: true
- *                             example: "https://pub-b3c115b60ec04ceaae8ac7360bf42530.r2.dev/curated-item/1759733438012-image 13.png"
- *                             description: The URL of the curated item's image
+ *                             example: "https://iphone.com"
  *                           price:
  *                             type: string
- *                             example: "500000.00"
- *                             description: The price of the curated item
+ *                             example: "1500.00"
  *                           categoryId:
  *                             type: string
  *                             format: uuid
- *                             example: "68f8b8c3-d071-4bcb-8811-65d4efedfbb4"
- *                             description: The ID of the category to which the item belongs
+ *                             example: "94c25650-72ec-4551-b6c8-3255198043d2"
  *                           gender:
  *                             type: string
+ *                             enum: [MALE, FEMALE, PREFER_NOT_TO_SAY]
  *                             example: "male"
- *                             description: The gender associated with the curated item
  *                           popularity:
  *                             type: integer
  *                             example: 0
- *                             description: The popularity score of the curated item
  *                     pagination:
  *                       type: object
  *                       properties:
  *                         page:
  *                           type: integer
  *                           example: 1
- *                           description: Current page number
  *                         limit:
  *                           type: integer
  *                           example: 20
- *                           description: Number of items per page
  *                         total:
  *                           type: integer
  *                           example: 2
- *                           description: Total number of items
+ *                           description: Total number of matching items
  *                         totalPages:
  *                           type: integer
  *                           example: 1
- *                           description: Total number of pages
+ *                           description: Total number of pages based on limit
  *                 message:
  *                   type: string
  *                   example: "Curated items fetched successfully"
  *       400:
- *         description: Bad Request - Invalid category IDs, budget minimum, budget maximum, or budget range
+ *         description: Bad Request - Invalid parameters
  *         content:
  *           application/json:
  *             schema:
@@ -1708,9 +1718,9 @@ router.post('/create-item', multerUpload.single('image'), curatedItemController.
  *                   example: error
  *                 message:
  *                   type: string
- *                   example: "Invalid budget minimum"
+ *                   example: "Budget minimum must be less than budget maximum"
  *       401:
- *         description: Unauthorized - User not authenticated
+ *         description: Unauthorized - User not logged in
  *         content:
  *           application/json:
  *             schema:
@@ -1721,9 +1731,9 @@ router.post('/create-item', multerUpload.single('image'), curatedItemController.
  *                   example: error
  *                 message:
  *                   type: string
- *                   example: "Authentication required"
+ *                   example: "Please log in to get curated items"
  *       404:
- *         description: Not Found - User not found
+ *         description: Not Found - User not found in database
  *         content:
  *           application/json:
  *             schema:
@@ -1735,14 +1745,22 @@ router.post('/create-item', multerUpload.single('image'), curatedItemController.
  *                 message:
  *                   type: string
  *                   example: "User not found"
+ *       500:
+ *         description: Internal Server Error
  */
 router.get('/items', curatedItemController.getCuratedItems);
 /**
  * @openapi
  * /wishlist/update-item:
- *   post:
- *     summary: Update a curated item
- *     description: Updates an existing curated item in the wishlist with the provided details, including name, image URL or file, price, category ID, and gender. Only authenticated users with admin privileges can update curated items. The price must be greater than 0 if provided, and the gender must be one of 'male', 'female', or 'prefer_not_to_say'. The image can be updated via a URL or an uploaded file.
+ *   patch:
+ *     summary: Update a curated item (Admin only)
+ *     description: >
+ *       Allows admins to partially update a curated item. All fields are optional — only provided fields will be updated.
+ *       
+ *       • Either `imageUrl` or an uploaded `file` can be used to update the image (uploading a file overrides imageUrl).
+ *       • Gender must be one of: `male`, `female`, or `prefer_not_to_say`.
+ *       • Price must be greater than 0 if provided.
+ *       • Only **admin** users can perform this action.
  *     tags:
  *       - Wishlist
  *     requestBody:
@@ -1755,39 +1773,35 @@ router.get('/items', curatedItemController.getCuratedItems);
  *               curatedItemId:
  *                 type: string
  *                 format: uuid
- *                 example: "7e676ba5-2ed5-4b80-b25b-96609d401d13"
- *                 description: The unique identifier of the curated item to update
+ *                 example: "35f8106c-c212-4719-8b4f-1e775faee29d"
+ *                 description: The ID of the curated item to update
  *               name:
  *                 type: string
- *                 nullable: true
- *                 example: "Iphone X"
- *                 description: The updated name of the curated item
- *               imageUrl:
- *                 type: string
- *                 nullable: true
- *                 example: "https://pub-b3c115b60ec04ceaae8ac7360bf42530.r2.dev/curated-item/1759733438012-image 13.png"
- *                 description: The updated URL of the curated item's image (optional if file is provided)
+ *                 example: "Iphone 21 pro max"
+ *                 description: New name for the item (optional)
  *               price:
  *                 type: string
- *                 nullable: true
- *                 example: "500000.00"
- *                 description: The updated price of the curated item (must be greater than 0 if provided)
+ *                 example: "500.00"
+ *                 description: New price as string (must be > 0 if provided)
  *               categoryId:
  *                 type: string
  *                 format: uuid
- *                 nullable: true
- *                 example: "68f8b8c3-d071-4bcb-8811-65d4efedfbb4"
- *                 description: The updated ID of the category to which the item belongs
+ *                 example: "94c25650-72ec-4551-b6c8-3255198043d2"
+ *                 description: New category ID (must exist)
  *               gender:
  *                 type: string
- *                 nullable: true
  *                 enum: [male, female, prefer_not_to_say]
- *                 example: "male"
- *                 description: The updated gender associated with the curated item
+ *                 example: "female"
+ *                 description: New gender for the item (optional)
+ *               imageUrl:
+ *                 type: string
+ *                 nullable: true
+ *                 example: "https://iphone.com"
+ *                 description: New image URL (optional if file is uploaded)
  *               file:
  *                 type: string
  *                 format: binary
- *                 description: The updated image file for the curated item (optional if imageUrl is provided)
+ *                 description: New image file to upload (takes priority over imageUrl)
  *             required:
  *               - curatedItemId
  *     responses:
@@ -1809,48 +1823,50 @@ router.get('/items', curatedItemController.getCuratedItems);
  *                       id:
  *                         type: string
  *                         format: uuid
- *                         example: "7e676ba5-2ed5-4b80-b25b-96609d401d13"
- *                         description: The unique identifier of the curated item
+ *                         example: "35f8106c-c212-4719-8b4f-1e775faee29d"
  *                       name:
  *                         type: string
- *                         example: "Iphone X"
- *                         description: The name of the curated item
+ *                         example: "Iphone 21 pro max"
  *                       imageUrl:
  *                         type: string
- *                         nullable: true
- *                         example: "https://pub-b3c115b60ec04ceaae8ac7360bf42530.r2.dev/curated-item/1759733438012-image 13.png"
- *                         description: The URL of the curated item's image
+ *                         example: "https://iphone.com"
  *                       price:
  *                         type: string
- *                         example: "500000.00"
- *                         description: The price of the curated item
- *                       gender:
- *                         type: string
- *                         example: "male"
- *                         description: The gender associated with the curated item
+ *                         example: "500.00"
  *                       popularity:
  *                         type: integer
  *                         example: 0
- *                         description: The popularity score of the curated item
  *                       isActive:
  *                         type: boolean
  *                         example: true
- *                         description: Indicates if the curated item is active
+ *                       itemType:
+ *                         type: string
+ *                         enum: [global, custom]
+ *                         example: "global"
+ *                       gender:
+ *                         type: string
+ *                         enum: [MALE, FEMALE, PREFER_NOT_TO_SAY]
+ *                         example: "female"
+ *                       isPublic:
+ *                         type: boolean
+ *                         example: true
  *                       categoryId:
  *                         type: string
  *                         format: uuid
- *                         example: "68f8b8c3-d071-4bcb-8811-65d4efedfbb4"
- *                         description: The ID of the category to which the item belongs
+ *                         example: "94c25650-72ec-4551-b6c8-3255198043d2"
+ *                       createdBy:
+ *                         type: string
+ *                         format: uuid
+ *                         example: "44ed85fb-901a-4102-ab00-e814108338dd"
  *                       created_at:
  *                         type: string
  *                         format: date-time
- *                         example: "2025-10-06T06:51:02.520Z"
- *                         description: Timestamp when the curated item was created
+ *                         example: "2025-11-28T13:47:26.402Z"
  *                 message:
  *                   type: string
  *                   example: "Curated item updated successfully"
  *       400:
- *         description: Bad Request - Invalid price or gender
+ *         description: Bad Request - Invalid input
  *         content:
  *           application/json:
  *             schema:
@@ -1863,7 +1879,7 @@ router.get('/items', curatedItemController.getCuratedItems);
  *                   type: string
  *                   example: "Price must be greater than 0"
  *       403:
- *         description: Forbidden - User is not an admin
+ *         description: Forbidden - Not an admin
  *         content:
  *           application/json:
  *             schema:
@@ -1876,7 +1892,7 @@ router.get('/items', curatedItemController.getCuratedItems);
  *                   type: string
  *                   example: "Admin access required"
  *       404:
- *         description: Not Found - User, category, or curated item not found
+ *         description: Not Found - Item, category, or user not found
  *         content:
  *           application/json:
  *             schema:
@@ -1889,7 +1905,7 @@ router.get('/items', curatedItemController.getCuratedItems);
  *                   type: string
  *                   example: "Curated item not found"
  *       500:
- *         description: Internal Server Error - Failed to update curated item
+ *         description: Internal Server Error - Update failed
  *         content:
  *           application/json:
  *             schema:
@@ -1998,6 +2014,12 @@ router.post('/update-item', curatedItemController.updateCuratedItem);
  */
 router.post('/delete-item', curatedItemController.deleteCuratedItem);
 //router.post('/seed-data', wishlistController.seedData);
+
+
+
+
+
+
 /**
  * @openapi
  * /wishlist/create:

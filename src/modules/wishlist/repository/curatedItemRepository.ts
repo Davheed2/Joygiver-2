@@ -36,19 +36,33 @@ class CuratedItemRepository {
 		return await query;
 	};
 
+	// for the categoryIds instead of passing undefined i want it to be 'all' so that we can fetch all categories
 	findByCategoriesAndGenderPaginated = async (
-		categoryIds: string[] | undefined,
+		categoryIds: string[] | 'all',
 		gender: Gender,
 		budgetMin?: number,
 		budgetMax?: number,
 		page: number = 1,
 		limit: number = 20
 	): Promise<PaginatedResult> => {
-		let query = knexDb.table('curated_items').where('gender', gender).where('isActive', true).where('isPublic', true);
+		let resolvedCategoryIds: string[] | undefined;
+		if (categoryIds === 'all') {
+			const allCategories = (await knexDb.table('categories').select('id').where('isActive', true)) as { id: string }[];
+			resolvedCategoryIds = allCategories.map((cat) => cat.id);
+		} else {
+			resolvedCategoryIds = categoryIds.length > 0 ? categoryIds : undefined;
+		}
+
+		let query = knexDb
+			.table('curated_items')
+			.where('gender', gender)
+			.orWhere('gender', 'prefer_not_to_say')
+			.where('isActive', true)
+			.where('isPublic', true);
 
 		// Only apply category filter if categoryIds is provided
-		if (categoryIds && categoryIds.length > 0) {
-			query = query.whereIn('categoryId', categoryIds);
+		if (resolvedCategoryIds && resolvedCategoryIds.length > 0) {
+			query = query.whereIn('categoryId', resolvedCategoryIds);
 		}
 
 		if (budgetMin !== undefined) {
@@ -73,12 +87,20 @@ class CuratedItemRepository {
 	};
 
 	findByCategoriesAllGenders = async (
-		categoryIds: string[] | undefined,
+		categoryIds: string[] | 'all',
 		budgetMin?: number,
 		budgetMax?: number,
 		page: number = 1,
 		limit: number = 20
 	): Promise<PaginatedResult> => {
+		let resolvedCategoryIds: string[] | undefined;
+		if (categoryIds === 'all') {
+			const allCategories = (await knexDb.table('categories').select('id').where('isActive', true)) as { id: string }[];
+			resolvedCategoryIds = allCategories.map((cat) => cat.id);
+		} else {
+			resolvedCategoryIds = categoryIds.length > 0 ? categoryIds : undefined;
+		}
+
 		let query = knexDb
 			.table('curated_items')
 			.whereIn('gender', [Gender.MALE, Gender.FEMALE, Gender.PREFER_NOT_TO_SAY])
@@ -86,8 +108,8 @@ class CuratedItemRepository {
 			.where('isPublic', true);
 
 		// Only apply category filter if categoryIds is provided
-		if (categoryIds && categoryIds.length > 0) {
-			query = query.whereIn('categoryId', categoryIds);
+		if (resolvedCategoryIds && resolvedCategoryIds.length > 0) {
+			query = query.whereIn('categoryId', resolvedCategoryIds);
 		}
 
 		if (budgetMin !== undefined) {
