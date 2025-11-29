@@ -5,7 +5,7 @@ const options = {
 	definition: {
 		openapi: '3.0.0',
 		info: {
-			title: 'JOY GIVER V1 Documentation',
+			title: 'JOY GIVER V2 Documentation',
 			version: '2.0.0',
 			description: 'API documentation for JOY GIVER backend application',
 			note1: 'For mobile applications, the header (joygiver) must be set as true',
