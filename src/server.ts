@@ -176,6 +176,10 @@ app.use('/api/v1/notification', notificationRouter);
 
 // Swagger documentation
 app.use('/api/v1/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use('/api/v1/swagger.json', (req: Request, res: Response) => {
+	res.setHeader('Content-Type', 'application/json');
+	res.send(swaggerSpec);
+});
 
 app.all('/{*splat}', async (req, res) => {
 	logger.error('route not found ' + new Date(Date.now()) + ' ' + req.originalUrl);
