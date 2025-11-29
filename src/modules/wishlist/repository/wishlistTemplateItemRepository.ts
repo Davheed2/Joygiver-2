@@ -15,8 +15,8 @@ class WishlistTemplateItemRepository {
 		return await knexDb.table('wishlist_template_items').where({ id }).first();
 	};
 
-	findByWishlistTemplateId = async (wishlistId: string): Promise<IWishlistTemplateItem[]> => {
-		return await knexDb.table('wishlist_template_items').where({ wishlistId }).orderBy('created_at', 'desc');
+	findByWishlistTemplateId = async (wishlistTemplateId: string): Promise<IWishlistTemplateItem[]> => {
+		return await knexDb.table('wishlist_template_items').where({ wishlistTemplateId }).orderBy('created_at', 'desc');
 	};
 
 	findBywishlistTemplateIds = async (wishlistTemplateIds: string[]): Promise<IWishlistTemplateItem[]> => {

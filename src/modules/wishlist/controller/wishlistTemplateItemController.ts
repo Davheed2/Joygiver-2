@@ -53,7 +53,7 @@ export class WishlistTemplateItemController {
 				.findByWishlistTemplateId(wishlistTemplate.id)
 				.then((items) => items.find((i) => i.curatedItemId === item.curatedItemId));
 			if (existingItem) {
-				throw new AppError(`${curated.name} already exists in the wishlist`, 400);
+				throw new AppError(`${curated.name} already exists in the wishlist template`, 400);
 			}
 
 			wishlistItems.push({
@@ -72,22 +72,6 @@ export class WishlistTemplateItemController {
 		}
 
 		return AppResponse(res, 201, toJSON(addedItems), 'Items added to wishlist successfully');
-	});
-
-	getTemplateItemByLink = catchAsync(async (req: Request, res: Response) => {
-		const { uniqueLink } = req.query;
-
-		if (!uniqueLink) {
-			throw new AppError('Unique link is required', 400);
-		}
-
-		const appendLink = `https://joygiver.co/${uniqueLink}`;
-		const wishlistTemplateItem = await wishlistTemplateItemRepository.findByUniqueLink(appendLink);
-		if (!wishlistTemplateItem) {
-			throw new AppError('Wishlist template item not found', 404);
-		}
-
-		return AppResponse(res, 200, toJSON([wishlistTemplateItem]), 'Wishlist template item retrieved successfully');
 	});
 }
 

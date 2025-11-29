@@ -5,6 +5,8 @@ import {
 	curatedItemController,
 	wishlistController,
 	wishlistItemController,
+	wishlistTemplateController,
+	wishlistTemplateItemController,
 } from '../controller';
 import { protect } from '@/middlewares/protect';
 import express from 'express';
@@ -2732,6 +2734,593 @@ router.get('/item', wishlistItemController.getItemByLink);
 router.get('/item-stats', wishlistItemController.getWishlistItemStats);
 router.post('/item-withdraw', wishlistItemController.withdrawFromItem);
 router.get('/item-balance', wishlistItemController.getItemBalance);
+
+/**
+ * @openapi
+ * /wishlist/create-template:
+ *   post:
+ *     summary: Create a new wishlist template (Admin only)
+ *     description: Allows admins to create reusable wishlist templates with predefined items. Templates include name, emoji, color theme, description, and optional curated items.
+ *     tags:
+ *       - Wishlist Template
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - emoji
+ *               - colorTheme
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: "My birthday wishlist Template"
+ *                 description: Name of the template
+ *               description:
+ *                 type: string
+ *                 nullable: true
+ *                 example: "My birthday wishlist description template"
+ *                 description: Optional description
+ *               emoji:
+ *                 type: string
+ *                 example: "party-popper"
+ *                 description: Emoji representing the template
+ *               colorTheme:
+ *                 type: string
+ *                 example: "purple"
+ *                 description: Color theme for the template
+ *               items:
+ *                 type: array
+ *                 description: Optional array of curated items to include in the template
+ *                 items:
+ *                   type: object
+ *                   required:
+ *                     - curatedItemId
+ *                   properties:
+ *                     curatedItemId:
+ *                       type: string
+ *                       format: uuid
+ *                       example: "31e32dfd-c1bc-4a0b-810f-9fb1b780bfde"
+ *                       description: ID of an existing curated item
+ *     responses:
+ *       201:
+ *         description: Wishlist template created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     oneOf:
+ *                       # Wishlist Template Object
+ *                       - properties:
+ *                           id:
+ *                             type: string
+ *                             format: uuid
+ *                             example: "67224c73-b6d4-44a2-8217-2a4fe1ec77e0"
+ *                           name:
+ *                             type: string
+ *                             example: "My birthday wishlist Template"
+ *                           description:
+ *                             type: string
+ *                             nullable: true
+ *                             example: "My birthday wishlist description template"
+ *                           emoji:
+ *                             type: string
+ *                             example: "emoji"
+ *                           colorTheme:
+ *                             type: string
+ *                             example: "colorTheme"
+ *                           userId:
+ *                             type: string
+ *                             format: uuid
+ *                           created_at:
+ *                             type: string
+ *                             format: date-time
+ *                             example: "2025-11-29T04:35:56.846Z"
+ *                       # Template Item Object
+ *                       - properties:
+ *                           id:
+ *                             type: string
+ *                             format: uuid
+ *                             example: "651f3d7c-9a73-4ad7-9d01-ab5a08b4b29e"
+ *                           name:
+ *                             type: string
+ *                             example: "Iphone XR"
+ *                           imageUrl:
+ *                             type: string
+ *                             example: "https://iphone.com"
+ *                           price:
+ *                             type: string
+ *                             example: "500.00"
+ *                           wishlistTemplateId:
+ *                             type: string
+ *                             format: uuid
+ *                             example: "67224c73-b6d4-44a2-8217-2a4fe1ec77e0"
+ *                           curatedItemId:
+ *                             type: string
+ *                             format: uuid
+ *                           categoryId:
+ *                             type: string
+ *                             format: uuid
+ *                           created_at:
+ *                             type: string
+ *                             format: date-time
+ *                             example: "2025-11-29T04:35:56.867Z"
+ *                 message:
+ *                   type: string
+ *                   example: "Wishlist template created successfully with items"
+ *                   description: Message changes if items were added or not
+ *       400:
+ *         description: Bad Request - Validation failed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 message:
+ *                   type: string
+ *                   example: "Each item must have curatedItemId"
+ *       401:
+ *         description: Unauthorized - Not logged in
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 message:
+ *                   type: string
+ *                   example: "Please log in to create a wishlist template"
+ *       403:
+ *         description: Forbidden - Not an admin
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 message:
+ *                   type: string
+ *                   example: "Only admins can create wishlist templates"
+ *       404:
+ *         description: Not Found - Curated item not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 message:
+ *                   type: string
+ *                   example: "Curated item with ID abc123 not found"
+ *       500:
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 message:
+ *                   type: string
+ *                   example: "Failed to create wishlist template"
+ */
+router.post('/create-template', wishlistTemplateController.createWishlistTemplate);
+/**
+ * @openapi
+ * /wishlist/templates:
+ *   get:
+ *     summary: Get all wishlist templates
+ *     description: Returns all available wishlist templates with their associated items. Only authenticated users can access this endpoint.
+ *     tags:
+ *       - Wishlist Template
+ *     responses:
+ *       200:
+ *         description: Wishlist templates fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       wishlistTemplate:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                             format: uuid
+ *                             example: "67224c73-b6d4-44a2-8217-2a4fe1ec77e0"
+ *                           name:
+ *                             type: string
+ *                             example: "My birthday wishlist Template"
+ *                           description:
+ *                             type: string
+ *                             nullable: true
+ *                             example: "My birthday wishlist description template"
+ *                           emoji:
+ *                             type: string
+ *                             example: "emoji"
+ *                           colorTheme:
+ *                             type: string
+ *                             example: "colorTheme"
+ *                           userId:
+ *                             type: string
+ *                             format: uuid
+ *                             example: "44ed85fb-901a-4102-ab00-e814108338dd"
+ *                           created_at:
+ *                             type: string
+ *                             format: date-time
+ *                             example: "2025-11-29T04:35:56.846Z"
+ *                           updated_at:
+ *                             type: string
+ *                             format: date-time
+ *                             example: "2025-11-29T04:35:56.846Z"
+ *                       items:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             id:
+ *                               type: string
+ *                               format: uuid
+ *                               example: "651f3d7c-9a73-4ad7-9d01-ab5a08b4b29e"
+ *                             name:
+ *                               type: string
+ *                               example: "Iphone XR"
+ *                             imageUrl:
+ *                               type: string
+ *                               example: "https://iphone.com"
+ *                             price:
+ *                               type: string
+ *                               example: "500.00"
+ *                             wishlistTemplateId:
+ *                               type: string
+ *                               format: uuid
+ *                               example: "67224c73-b6d4-44a2-8217-2a4fe1ec77e0"
+ *                             curatedItemId:
+ *                               type: string
+ *                               format: uuid
+ *                             categoryId:
+ *                               type: string
+ *                               format: uuid
+ *                             created_at:
+ *                               type: string
+ *                               format: date-time
+ *                               example: "2025-11-29T04:35:56.867Z"
+ *                             updated_at:
+ *                               type: string
+ *                               format: date-time
+ *                               example: "2025-11-29T04:35:56.867Z"
+ *                 message:
+ *                   type: string
+ *                   example: "Wishlist templates fetched successfully"
+ *       401:
+ *         description: Unauthorized - Not logged in
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 message:
+ *                   type: string
+ *                   example: "Please login to view wishlist templates"
+ *       404:
+ *         description: Not Found - No templates or items found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 message:
+ *                   type: string
+ *                   example: "No wishlist templates found for this user"
+ */
+router.get('/templates', wishlistTemplateController.getWishlistTemplates);
+/**
+ * @openapi
+ * /wishlist/template:
+ *   get:
+ *     summary: Get a wishlist template by ID
+ *     description: Retrieves a specific wishlist template along with all its associated items. Only authenticated users can access this endpoint.
+ *     tags:
+ *       - Wishlist Template
+ *     parameters:
+ *       - in: path
+ *         name: wishlistTemplateId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         example: "67224c73-b6d4-44a2-8217-2a4fe1ec77e0"
+ *         description: The ID of the wishlist template to retrieve
+ *     responses:
+ *       200:
+ *         description: Wishlist template fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       wishlistTemplate:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                             format: uuid
+ *                             example: "67224c73-b6d4-44a2-8217-2a4fe1ec77e0"
+ *                           name:
+ *                             type: string
+ *                             example: "My birthday wishlist Template"
+ *                           description:
+ *                             type: string
+ *                             nullable: true
+ *                             example: "My birthday wishlist description template"
+ *                           emoji:
+ *                             type: string
+ *                             example: "emoji"
+ *                           colorTheme:
+ *                             type: string
+ *                             example: "colorTheme"
+ *                           userId:
+ *                             type: string
+ *                             format: uuid
+ *                             example: "44ed85fb-901a-4102-ab00-e814108338dd"
+ *                           created_at:
+ *                             type: string
+ *                             format: date-time
+ *                             example: "2025-11-29T04:35:56.846Z"
+ *                           updated_at:
+ *                             type: string
+ *                             format: date-time
+ *                             example: "2025-11-29T04:35:56.846Z"
+ *                       items:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             id:
+ *                               type: string
+ *                               format: uuid
+ *                               example: "651f3d7c-9a73-4ad7-9d01-ab5a08b4b29e"
+ *                             name:
+ *                               type: string
+ *                               example: "Iphone XR"
+ *                             imageUrl:
+ *                               type: string
+ *                               example: "https://iphone.com"
+ *                             price:
+ *                               type: string
+ *                               example: "500.00"
+ *                             wishlistTemplateId:
+ *                               type: string
+ *                               format: uuid
+ *                               example: "67224c73-b6d4-44a2-8217-2a4fe1ec77e0"
+ *                             curatedItemId:
+ *                               type: string
+ *                               format: uuid
+ *                             categoryId:
+ *                               type: string
+ *                               format: uuid
+ *                             created_at:
+ *                               type: string
+ *                               format: date-time
+ *                               example: "2025-11-29T04:35:56.867Z"
+ *                             updated_at:
+ *                               type: string
+ *                               format: date-time
+ *                               example: "2025-11-29T04:35:56.867Z"
+ *                 message:
+ *                   type: string
+ *                   example: "Wishlist template fetched successfully"
+ *       401:
+ *         description: Unauthorized - Not logged in
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 message:
+ *                   type: string
+ *                   example: "Please login to view wishlist templates"
+ *       404:
+ *         description: Not Found - Template or items not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 message:
+ *                   type: string
+ *                   example: "Wishlist Template not found"
+ */
+router.get('/template', wishlistTemplateController.getWishlistTemplateById);
+/**
+ * @openapi
+ * /wishlist/template/add-items:
+ *   post:
+ *     summary: Add items to a wishlist template
+ *     description: Adds one or more curated items to an existing wishlist template. Duplicates are not allowed (checked by curatedItemId). Only authenticated users can use this endpoint.
+ *     tags:
+ *       - Wishlist Template
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - wishlistTemplateId
+ *               - items
+ *             properties:
+ *               wishlistTemplateId:
+ *                 type: string
+ *                 format: uuid
+ *                 example: "67224c73-b6d4-44a2-8217-2a4fe1ec77e0"
+ *                 description: ID of the wishlist template to add items to
+ *               items:
+ *                 type: array
+ *                 minItems: 1
+ *                 description: Array of curated items to add
+ *                 items:
+ *                   type: object
+ *                   required:
+ *                     - curatedItemId
+ *                   properties:
+ *                     curatedItemId:
+ *                       type: string
+ *                       format: uuid
+ *                       example: "da545e55-13a8-4c59-bf73-9de9519b1bc0"
+ *                       description: ID of an existing curated item
+ *     responses:
+ *       201:
+ *         description: Items added to template successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         format: uuid
+ *                         example: "a2083c0e-2fdd-4276-bba3-fca7f07cb722"
+ *                       name:
+ *                         type: string
+ *                         example: "Iphone 12 pro max"
+ *                       imageUrl:
+ *                         type: string
+ *                         example: "https://iphone.com"
+ *                       price:
+ *                         type: string
+ *                         example: "1500.00"
+ *                       wishlistTemplateId:
+ *                         type: string
+ *                         format: uuid
+ *                         example: "67224c73-b6d4-44a2-8217-2a4fe1ec77e0"
+ *                       curatedItemId:
+ *                         type: string
+ *                         format: uuid
+ *                         example: "da545e55-13a8-4c59-bf73-9de9519b1bc0"
+ *                       categoryId:
+ *                         type: string
+ *                         format: uuid
+ *                         example: "94c25650-72ec-4551-b6c8-3255198043d2"
+ *                       created_at:
+ *                         type: string
+ *                         format: date-time
+ *                         example: "2025-11-29T05:04:39.044Z"
+ *                 message:
+ *                   type: string
+ *                   example: "Items added to wishlist successfully"
+ *       400:
+ *         description: Bad Request - Validation failed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 message:
+ *                   type: string
+ *                   example: "Each item must have a curatedItemId"
+ *       401:
+ *         description: Unauthorized - Not logged in
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 message:
+ *                   type: string
+ *                   example: "Please log in to add items to a wishlist"
+ *       404:
+ *         description: Not Found - Template not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 message:
+ *                   type: string
+ *                   example: "Wishlist Template not found"
+ *       500:
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 message:
+ *                   type: string
+ *                   example: "Failed to add items to wishlist"
+ */
+router.post('/template/add-items', wishlistTemplateItemController.addItemsToWishlistTemplate);
+
 /**
  * @openapi
  * /wishlist/reply-contributor:

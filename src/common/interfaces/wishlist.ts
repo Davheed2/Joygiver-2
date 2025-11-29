@@ -52,6 +52,7 @@ export interface ICategory {
 export interface IWishlistTemplate {
 	id: string;
 	name: string;
+	description?: string;
 	emoji?: string;
 	colorTheme?: string;
 	userId: string;
