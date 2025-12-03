@@ -369,11 +369,18 @@ export class UserController {
 		if (referrer) {
 			await friendsRepository.addFriendViaReferral(user.id, referralCode);
 
-			await referralRepository.update(referrer.id, {
-				isUsed: true,
-				usedByUserId: freshUser.id,
-				usedAt: DateTime.now().toJSDate(),
-			});
+			const defaultAdminEmail = 'admin@example.com';
+			const defaultAdminUser = await userRepository.findByEmail(defaultAdminEmail);
+			if (!defaultAdminUser) {
+				throw new AppError('Default admin user not found for referral processing', 500);
+			}
+			if (referrer.userId !== defaultAdminUser.id) {
+				await referralRepository.update(referrer.id, {
+					isUsed: true,
+					usedByUserId: freshUser.id,
+					usedAt: DateTime.now().toJSDate(),
+				});
+			}
 		}
 
 		if (hasJustCompletedRegistration) {
