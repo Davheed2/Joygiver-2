@@ -1673,6 +1673,8 @@ router.post('/update', userController.updateUserDetails);
  */
 router.post('/change-password', userController.changePassword);
 
+router.get('/find-referrer', userController.findReferrerByCode);
+
 router.get('/friends-wishlists', friendsController.getFriendsWishlists);
 router.get('/friends', friendsController.getFriendsList);
 router.post('/remove-friend', friendsController.removeFriend);

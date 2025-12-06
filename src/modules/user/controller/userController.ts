@@ -580,6 +580,25 @@ export class UserController {
 		return AppResponse(res, 200, toJSON([extinguishUser]), 'Profile retrieved successfully');
 	});
 
+	findReferrerByCode = catchAsync(async (req: Request, res: Response) => {
+		const { user } = req;
+		const { referralCode } = req.query;
+
+		if (!user) {
+			throw new AppError('Please log in again', 400);
+		}
+		if (!referralCode) {
+			throw new AppError('Please provide a referral code', 400);
+		}
+
+		const referrer = await referralRepository.findUserByCode(referralCode as string);
+		if (!referrer) {
+			throw new AppError('No user found for the provided referral code', 404);
+		}
+
+		return AppResponse(res, 200, toJSON([referrer]), 'User retrieved successfully');
+	});
+
 	partialFindByUsernameOrEmail = catchAsync(async (req: Request, res: Response) => {
 		const { usernameOrEmail } = req.query;
 

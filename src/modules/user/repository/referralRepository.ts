@@ -1,5 +1,5 @@
 import { knexDb } from '@/common/config';
-import { IReferralCode } from '@/common/interfaces';
+import { IReferralCode, IUser } from '@/common/interfaces';
 import { generateRandomCode } from '@/common/utils';
 import { DateTime } from 'luxon';
 
@@ -53,10 +53,22 @@ class ReferralRepository {
 			.orderBy('created_at', 'desc');
 	};
 
-    findByCode = async (referralCode: string): Promise<IReferralCode | null> => {
-        const code = await knexDb.table('referral_code').where({ referralCode }).first();
-        return code || null;
-    }
+	findByCode = async (referralCode: string): Promise<IReferralCode | null> => {
+		const code = await knexDb.table('referral_code').where({ referralCode }).first();
+		return code || null;
+	};
+
+	findUserByCode = async (referralCode: string): Promise<IUser | null> => {
+		const code = await knexDb.table('referral_code').where({ referralCode }).andWhere({ isUsed: false }).first();
+
+		if (!code) {
+			return null;
+		}
+
+		const user = await knexDb.table('users').where({ id: code.userId }).first();
+
+		return user || null;
+	};
 
 	getReferralStats = async (
 		userId: string
