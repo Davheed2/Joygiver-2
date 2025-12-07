@@ -15,8 +15,8 @@ export class CuratedItemController {
 		if (!user) {
 			throw new AppError('Please log in to create a curated item', 401);
 		}
-		if (!name || !price || !categoryId) {
-			throw new AppError('Name, price and category are required', 400);
+		if (!name || !price) {
+			throw new AppError('Name, price are required', 400);
 		}
 		if (price <= 0) {
 			throw new AppError('Price must be greater than 0', 400);
@@ -25,8 +25,8 @@ export class CuratedItemController {
 			throw new AppError('Either image file or image URL is required', 400);
 		}
 
-		const category = await categoryRepository.findById(categoryId);
-		if (!category) {
+		const category = categoryId ? await categoryRepository.findById(categoryId) : null;
+		if (categoryId && !category) {
 			throw new AppError('Category not found', 404);
 		}
 

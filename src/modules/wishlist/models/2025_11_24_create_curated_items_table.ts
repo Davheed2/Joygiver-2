@@ -11,7 +11,7 @@ export async function up(knex: Knex): Promise<void> {
 		table.enum('itemType', ['global', 'custom']).notNullable();
 		table.enum('gender', ['male', 'female', 'prefer_not_to_say']).nullable();
 		table.boolean('isPublic').defaultTo(false);
-		table.uuid('categoryId').notNullable().references('id').inTable('categories').onDelete('CASCADE');
+		table.uuid('categoryId').nullable().references('id').inTable('categories').onDelete('CASCADE');
 		table.uuid('createdBy').nullable().references('id').inTable('users').onDelete('SET NULL');
 		table.timestamps(true, true);
 
