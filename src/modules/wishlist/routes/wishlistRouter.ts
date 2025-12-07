@@ -1170,6 +1170,8 @@ router.post('/create-category', categoryController.createCategory);
  *                   example: "Failed to fetch active categories"
  */
 router.get('/categories', categoryController.getCategories);
+router.get('/category', categoryController.getCategoryById);
+
 /**
  * @openapi
  * /wishlist/update-category:

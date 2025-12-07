@@ -403,10 +403,9 @@ export class UserController {
 
 		const updatedUser = { ...existingUser, ...updateData };
 		const willBeComplete = !!(
-			updatedUser.email &&
+			(updatedUser.email || updatedUser.phone) &&
 			updatedUser.firstName &&
 			updatedUser.lastName &&
-			updatedUser.phone &&
 			updatedUser.dob &&
 			updatedUser.username &&
 			updatedUser.gender &&

@@ -49,6 +49,25 @@ export class CategoryController {
 		return AppResponse(res, 200, toJSON(categories), 'Categories fetched successfully');
 	});
 
+	getCategoryById = catchAsync(async (req: Request, res: Response) => {
+		const { user } = req;
+		const { categoryId } = req.query;
+
+		if (!user) {
+			throw new AppError('Please log in to view categories', 401);
+		}
+		if (!categoryId) {
+			throw new AppError('Category ID is required', 400);
+		}
+
+		const category = await categoryRepository.findById(categoryId as string);
+		if (!category) {
+			throw new AppError('Category not found', 404);
+		}
+
+		return AppResponse(res, 200, toJSON([category]), 'Category fetched successfully');
+	})
+
 	updateCategory = catchAsync(async (req: Request, res: Response) => {
 		const { user } = req;
 		const { categoryId, name } = req.body;
