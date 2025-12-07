@@ -42,14 +42,80 @@ export class UserController {
 		if (email) {
 			const existingEmailUser = await userRepository.findByEmail(email);
 			if (existingEmailUser) {
-				return AppResponse(res, 200, toJSON([existingEmailUser]), 'User with this email already exists');
+				const currentRequestTime = DateTime.now();
+				const lastOtpRetry = existingEmailUser.lastLogin
+					? currentRequestTime.diff(DateTime.fromISO(existingEmailUser.lastLogin.toISOString()), 'hours')
+					: null;
+
+				if (existingEmailUser.otpRetries >= 5 && lastOtpRetry && Math.round(lastOtpRetry.hours) < 1) {
+					throw new AppError('Too many OTP requests. Please try again in an hour.', 429);
+				}
+
+				// const generatedOtp = generateOtp();
+				const generatedOtp = '222222';
+				const otpExpires = currentRequestTime.plus({ minutes: 5 }).toJSDate();
+
+				await userRepository.update(existingEmailUser.id, {
+					otp: generatedOtp,
+					otpExpires,
+					otpRetries: (existingEmailUser.otpRetries || 0) + 1,
+				});
+
+				if (email && existingEmailUser.email) {
+					await sendOtpEmail(existingEmailUser.email, existingEmailUser.firstName, generatedOtp);
+					console.log(`OTP sent to email ${existingEmailUser.email}: ${generatedOtp}`);
+				}
+
+				return AppResponse(
+					res,
+					200,
+					toJSON([existingEmailUser]),
+					'User with this email already exists, OTP sent successfully'
+				);
 			}
 		}
 
 		if (phone) {
 			const existingPhoneUser = await userRepository.findByPhone(phone);
 			if (existingPhoneUser) {
-				return AppResponse(res, 200, toJSON([existingPhoneUser]), 'User with this phone number already exists');
+				const currentRequestTime = DateTime.now();
+				const lastOtpRetry = existingPhoneUser.lastLogin
+					? currentRequestTime.diff(DateTime.fromISO(existingPhoneUser.lastLogin.toISOString()), 'hours')
+					: null;
+
+				if (existingPhoneUser.otpRetries >= 5 && lastOtpRetry && Math.round(lastOtpRetry.hours) < 1) {
+					throw new AppError('Too many OTP requests. Please try again in an hour.', 429);
+				}
+
+				// const generatedOtp = generateOtp();
+				const generatedOtp = '222222';
+				const otpExpires = currentRequestTime.plus({ minutes: 5 }).toJSDate();
+
+				await userRepository.update(existingPhoneUser.id, {
+					otp: generatedOtp,
+					otpExpires,
+					otpRetries: (existingPhoneUser.otpRetries || 0) + 1,
+				});
+
+				if (phone && existingPhoneUser.phone) {
+					const smsResult = await sendOtpSms(existingPhoneUser.phone, generatedOtp, 'dnd');
+
+					if (smsResult.success) {
+						console.log(`OTP sent to phone ${existingPhoneUser.phone}: ${generatedOtp}`);
+					} else {
+						// Log the error but don't fail registration
+						console.error(`Failed to send OTP SMS to ${existingPhoneUser.phone}:`, smsResult.error);
+						// Optionally, you can still allow registration to proceed
+						// or throw an error if SMS is critical
+					}
+				}
+
+				return AppResponse(
+					res,
+					200,
+					toJSON([existingPhoneUser]),
+					'User with this phone number already exists, OTP sent successfully'
+				);
 			}
 		}
 
