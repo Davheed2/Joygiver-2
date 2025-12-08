@@ -201,6 +201,8 @@ export class WishlistController {
 			throw new AppError('No items found in this wishlist', 404);
 		}
 
+		console.log('WISHLISTS:', wishlists);
+		console.log('ITEMS:', items);
 		return AppResponse(
 			res,
 			200,
