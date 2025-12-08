@@ -187,19 +187,17 @@ export class WishlistController {
 			throw new AppError('Please login to view your wishlists', 404);
 		}
 
-		const [wishlists] = await wishlistRepository.findByUserId(user.id);
-		if (!wishlists) {
+		const wishlists = await wishlistRepository.findByUserId(user.id);
+		if (!wishlists || wishlists.length === 0) {
 			throw new AppError('No wishlists found for this user', 404);
 		}
 
-		if (!wishlists.isPublic && wishlists.status !== WishlistStatus.ACTIVE) {
-			throw new AppError('This wishlist is not available', 403);
-		}
-
-		const items = await wishlistItemRepository.findByWishlistId(wishlists.id);
-		if (!items) {
-			throw new AppError('No items found in this wishlist', 404);
-		}
+		const items = await Promise.all(
+			wishlists.map(async (wishlist) => {
+				const wishlistItems = await wishlistItemRepository.findByWishlistId(wishlist.id);
+				return { wishlist, items: wishlistItems || [] };
+			})
+		);
 
 		console.log('WISHLISTS:', wishlists);
 		console.log('ITEMS:', items);
