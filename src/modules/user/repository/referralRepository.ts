@@ -8,7 +8,7 @@ class ReferralRepository {
 		return await knexDb.table('referral_code').insert(payload).returning('*');
 	};
 
-	generateReferralCodes = async (userId: string, count: number = 5) => {
+	generateReferralCodes = async (userId: string, count: number = 6) => {
 		const codes: string[] = [];
 		const codesToInsert: Array<{ userId: string; referralCode: string }> = [];
 
@@ -17,7 +17,7 @@ class ReferralRepository {
 			let isUnique = false;
 
 			while (!isUnique) {
-				const randomPart = generateRandomCode(5);
+				const randomPart = generateRandomCode(6);
 				referralCode = `JOY-${randomPart}`;
 
 				const existing = await knexDb.table('referral_code').where({ referralCode }).first();

@@ -457,7 +457,7 @@ export class UserController {
 				totalWithdrawn: 0,
 			});
 
-			await referralRepository.generateReferralCodes(user.id, 5);
+			await referralRepository.generateReferralCodes(user.id, 6);
 
 			await sendWelcomeEmail(freshUser.email, freshUser.firstName);
 		}
