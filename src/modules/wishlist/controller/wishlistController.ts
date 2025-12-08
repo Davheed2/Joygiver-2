@@ -199,8 +199,6 @@ export class WishlistController {
 			})
 		);
 
-		console.log('WISHLISTS:', wishlists);
-		console.log('ITEMS:', items);
 		return AppResponse(
 			res,
 			200,
