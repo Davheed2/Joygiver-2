@@ -192,17 +192,17 @@ export class WishlistController {
 			throw new AppError('No wishlists found for this user', 404);
 		}
 
-		const items = await Promise.all(
+		const mappedData = await Promise.all(
 			wishlists.map(async (wishlist) => {
 				const wishlistItems = await wishlistItemRepository.findByWishlistId(wishlist.id);
-				return { wishlist, items: wishlistItems || [] };
+				return { wishlist: toJSON(wishlist), items: toJSON(wishlistItems || []) };
 			})
 		);
 
 		return AppResponse(
 			res,
 			200,
-			[{ wishlist: toJSON(wishlists), items: toJSON(items) }],
+			mappedData,
 			'Wishlists fetched successfully'
 		);
 	});
