@@ -22,8 +22,8 @@ class WishlistRepository {
 		return await knexDb
 			.table('wishlists')
 			.where({ userId })
-			.orWhere({ isPublic: true })
-			.orWhere({ status: 'active' })
+			.where({ isPublic: true })
+			.where({ status: 'active' })
 			.orderBy('created_at', 'desc');
 	};
 

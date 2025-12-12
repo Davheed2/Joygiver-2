@@ -189,7 +189,7 @@ export class WishlistController {
 
 		const wishlists = await wishlistRepository.findByUserId(user.id);
 		if (!wishlists || wishlists.length === 0) {
-			throw new AppError('No wishlists found for this user', 404);
+			return AppResponse(res, 200, [], 'No wishlists found for this user');
 		}
 
 		const mappedData = await Promise.all(
