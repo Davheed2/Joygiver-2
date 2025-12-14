@@ -3677,4 +3677,6 @@ router.get('/my-contributions', contributionController.getMyWishlistsContributio
  */
 router.get('/verify-payment', contributionController.verifyPayment);
 
+router.get('/contributions-per-user', contributionController.getAllContributionsPerUser);
+
 export { router as wishlistRouter };

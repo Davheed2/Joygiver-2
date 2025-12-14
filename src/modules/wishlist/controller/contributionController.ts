@@ -81,7 +81,7 @@ export class ContributionController {
 		const limitNum = parseInt(limit as string, 10);
 
 		const contributions = await contributionRepository.getAllContributionsPerUser(
-			user.email,
+			user.id,
 			pageNum,
 			limitNum
 		);
