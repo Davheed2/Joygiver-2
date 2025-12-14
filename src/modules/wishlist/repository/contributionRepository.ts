@@ -556,7 +556,7 @@ class ContributorsRepository {
 				itemCount: allocations.length,
 				allocations,
 			},
-			callbackUrl: `$${wishlist.uniqueLink}`,
+			callbackUrl: `${wishlist.uniqueLink}`,
 		});
 
 		return {
