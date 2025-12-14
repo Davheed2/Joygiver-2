@@ -137,6 +137,8 @@ export interface IContribution {
 	contributorName: string;
 	contributorEmail: string;
 	contributorPhone?: string;
+	contributorUsername?: string;
+	contributorProfileImage?: string;
 	message?: string;
 	isAnonymous: boolean;
 	amount: number;

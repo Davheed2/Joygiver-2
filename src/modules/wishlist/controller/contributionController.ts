@@ -69,6 +69,26 @@ export class ContributionController {
 		);
 	});
 
+	getAllContributionsPerUser = catchAsync(async (req: Request, res: Response) => {
+		const { user } = req;
+		const { page = 1, limit = 20 } = req.query;
+
+		if (!user) {
+			throw new AppError('Please log in', 401);
+		}
+
+		const pageNum = parseInt(page as string, 10);
+		const limitNum = parseInt(limit as string, 10);
+
+		const contributions = await contributionRepository.getAllContributionsPerUser(
+			user.email,
+			pageNum,
+			limitNum
+		);
+
+		return AppResponse(res, 200, toJSON(contributions), 'Contributions retrieved successfully');
+	});
+
 	getWishlistContributions = catchAsync(async (req: Request, res: Response) => {
 		const { page = 1, limit = 20, wishlistId } = req.query;
 

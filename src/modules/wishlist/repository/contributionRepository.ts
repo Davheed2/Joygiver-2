@@ -32,6 +32,21 @@ class ContributorsRepository {
 			.offset(offset);
 	};
 
+	findByWishlistIdd = async (wishlistId: string, page = 1, limit = 20): Promise<IContribution[]> => {
+		const offset = (page - 1) * limit;
+		return await knexDb('contributions')
+			.select(
+				'contributions.*',
+				knexDb.raw(`COALESCE(users.username, CONCAT('Anonymous-', contributions.contributorEmail)) as senderUsername`),
+				knexDb.raw(`COALESCE(users.photo, NULL) as senderProfileImage`)
+			)
+			.leftJoin('users', 'contributions.contributorEmail', 'users.email')
+			.where({ 'contributions.wishlistId': wishlistId, 'contributions.status': 'completed' })
+			.orderBy('contributions.amount', 'desc')
+			.limit(limit)
+			.offset(offset);
+	};
+
 	findByWishlistItemId = async (wishlistItemId: string, page = 1, limit = 20): Promise<IContribution[]> => {
 		const offset = (page - 1) * limit;
 		return await knexDb
@@ -115,6 +130,80 @@ class ContributorsRepository {
 			.countDistinct('contributorEmail as count')
 			.first();
 		return Number(result?.count || 0);
+	};
+
+	// getAllContributionsPerUser = async (
+	// 	userId: string,
+	// 	page = 1,
+	// 	limit = 20
+	// ): Promise<{
+	// 	data: IContribution[];
+	// 	pagination: { page: number; limit: number; total: number; totalPages: number };
+	// }> => {
+	// 	const offset = (page - 1) * limit;
+
+	// 	const [data, totalResult] = await Promise.all([
+	// 		knexDb('contributions')
+	// 			.select('contributions.*', 'users.username as senderUsername', 'users.photo as senderProfileImage')
+	// 			.leftJoin('users', 'contributions.contributorEmail', 'users.email')
+	// 			.where({ 'contributions.receiverId': userId })
+	// 			.orderBy('contributions.amount', 'desc')
+	// 			.limit(limit)
+	// 			.offset(offset),
+	// 		knexDb('contributions').where({ receiverId: userId }).count<{ count: string }[]>('* as count').first(),
+	// 	]);
+
+	// 	const total = Number(totalResult?.count || 0);
+
+	// 	return {
+	// 		data,
+	// 		pagination: {
+	// 			page,
+	// 			limit,
+	// 			total,
+	// 			totalPages: Math.ceil(total / limit),
+	// 		},
+	// 	};
+	// };
+
+	getAllContributionsPerUser = async (
+		userId: string,
+		page = 1,
+		limit = 20
+	): Promise<{
+		data: IContribution[];
+		pagination: { page: number; limit: number; total: number; totalPages: number };
+	}> => {
+		const offset = (page - 1) * limit;
+
+		const [data, totalResult] = await Promise.all([
+			knexDb('contributions')
+				.select(
+					'contributions.*',
+					knexDb.raw(
+						`COALESCE(users.username, CONCAT('Anonymous-', contributions.contributorEmail)) as senderUsername`
+					),
+					knexDb.raw(`COALESCE(users.photo, NULL) as senderProfileImage`)
+				)
+				.leftJoin('users', 'contributions.contributorEmail', 'users.email')
+				.where({ 'contributions.receiverId': userId })
+				.orderBy('contributions.amount', 'desc')
+				.limit(limit)
+				.offset(offset),
+			knexDb('contributions').where({ receiverId: userId }).count<{ count: string }[]>('* as count').first(),
+		]);
+
+		const total = Number(totalResult?.count || 0);
+
+		return {
+			data,
+			pagination: {
+				page,
+				limit,
+				total,
+				totalPages: Math.ceil(total / limit),
+			},
+		};
 	};
 
 	initiateContribution = async (data: {
@@ -281,7 +370,7 @@ class ContributorsRepository {
 	};
 
 	getWishlistContributions = async (wishlistId: string, page = 1, limit = 20) => {
-		const contributions = await this.findByWishlistId(wishlistId, page, limit);
+		const contributions = await this.findByWishlistIdd(wishlistId, page, limit);
 		const total = await this.countByWishlistId(wishlistId);
 
 		return {
