@@ -1,4 +1,4 @@
-import { ENVIRONMENT, knexDb } from '@/common/config';
+import { knexDb } from '@/common/config';
 import { ContributionStatus } from '@/common/constants';
 import { IContributeAllRequest, IContribution, IContributorStats } from '@/common/interfaces';
 import { AppError } from '@/common/utils';
@@ -161,6 +161,7 @@ class ContributorsRepository {
 			isAnonymous: data.isAnonymous || false,
 			amount: data.amount,
 			status: ContributionStatus.PENDING,
+			// receiverId: wishlist.userId,
 			paymentMethod: 'paystack',
 			paymentReference: reference,
 		});
@@ -555,7 +556,7 @@ class ContributorsRepository {
 				itemCount: allocations.length,
 				allocations,
 			},
-			callbackUrl: `${ENVIRONMENT.FRONTEND_URL}/${wishlist.uniqueLink}`,
+			callbackUrl: `$${wishlist.uniqueLink}`,
 		});
 
 		return {

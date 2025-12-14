@@ -143,6 +143,7 @@ export interface IContribution {
 	status: ContributionStatus;
 	paymentMethod: 'paystack' | 'flutterwave' | 'bank_transfer';
 	paymentReference: string;
+	receiverId: string;
 	paystackReference?: string;
 	ownerReply?: string;
 	repliedAt?: Date;
