@@ -529,6 +529,7 @@ class ContributorsRepository {
 						isAnonymous: data.isAnonymous || false,
 						amount: allocation.amount,
 						status: 'pending',
+						receiverId: wishlist.userId,
 						paymentMethod: 'paystack',
 						paymentReference: `${reference}-${allocation.wishlistItemId}`,
 					})
