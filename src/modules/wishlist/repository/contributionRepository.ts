@@ -188,7 +188,7 @@ class ContributorsRepository {
 					knexDb.raw(`COALESCE(users.photo, NULL) as senderProfileImage`)
 				)
 				.leftJoin('users', 'contributions.contributorEmail', 'users.email')
-				.where({ 'contributions.receiverId': userId })
+				.where({ 'contributions.receiverId': userId, 'contributions.status': ContributionStatus.COMPLETED })
 				.orderBy('contributions.amount', 'desc')
 				.limit(limit)
 				.offset(offset),
