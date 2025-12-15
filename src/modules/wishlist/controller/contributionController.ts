@@ -93,7 +93,7 @@ export class ContributionController {
 		const { page = 1, limit = 20, wishlistId } = req.query;
 
 		if (!wishlistId) {
-			throw new AppError('Wishlist ID is required', 401);
+			throw new AppError('Wishlist ID is required', 400);
 		}
 
 		const pageNum = parseInt(page as string, 10);

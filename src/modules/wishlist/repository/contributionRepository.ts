@@ -37,7 +37,9 @@ class ContributorsRepository {
 		return await knexDb('contributions')
 			.select(
 				'contributions.*',
-				knexDb.raw(`COALESCE(users.username, CONCAT('Anonymous-', contributions.contributorEmail)) as senderUsername`),
+				knexDb.raw(
+					`COALESCE(users.username, CONCAT('Anonymous-', contributions."contributorEmail")) as senderUsername`
+				),
 				knexDb.raw(`COALESCE(users.photo, NULL) as senderProfileImage`)
 			)
 			.leftJoin('users', 'contributions.contributorEmail', 'users.email')
@@ -181,7 +183,7 @@ class ContributorsRepository {
 				.select(
 					'contributions.*',
 					knexDb.raw(
-						`COALESCE(users.username, CONCAT('Anonymous-', contributions.contributorEmail)) as senderUsername`
+						`COALESCE(users.username, CONCAT('Anonymous-', contributions."contributorEmail")) as senderUsername`
 					),
 					knexDb.raw(`COALESCE(users.photo, NULL) as senderProfileImage`)
 				)
