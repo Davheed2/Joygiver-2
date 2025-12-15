@@ -180,6 +180,40 @@ export class WishlistController {
 		);
 	});
 
+	getWishlistById = catchAsync(async (req: Request, res: Response) => {
+		const { wishlistId } = req.query;
+
+		if (!wishlistId) {
+			throw new AppError('Wishlist ID is required', 400);
+		}
+
+		const wishlist = await wishlistRepository.findById(wishlistId as string);
+		if (!wishlist) {
+			throw new AppError('Wishlist not found', 404);
+		}
+		if (!wishlist.isPublic && wishlist.status !== WishlistStatus.ACTIVE) {
+			throw new AppError('This wishlist is not available', 403);
+		}
+
+		const items = await wishlistItemRepository.findByWishlistId(wishlist.id);
+		if (!items) {
+			throw new AppError('No items found in this wishlist', 404);
+		}
+
+		await wishlistViewRepository.trackView(wishlist.id, {
+			ipAddress: req.ip,
+			userAgent: req.get('user-agent') || '',
+			referrer: req.get('referer'),
+		});
+
+		return AppResponse(
+			res,
+			200,
+			[{ wishlist: toJSON(wishlist), items: toJSON(items) }],
+			'Wishlist fetched successfully'
+		);
+	});
+
 	getUserWishlist = catchAsync(async (req: Request, res: Response) => {
 		const { user } = req;
 
@@ -206,6 +240,8 @@ export class WishlistController {
 			'Wishlists fetched successfully'
 		);
 	});
+
+	
 
 	/// document these 2
 	getWishlistStats = catchAsync(async (req: Request, res: Response) => {

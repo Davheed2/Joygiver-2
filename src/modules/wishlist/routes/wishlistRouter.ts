@@ -214,7 +214,7 @@ const router = express.Router();
  *                   example: "Wishlist not found"
  */
 router.get('/', wishlistController.getWishlistByLink);
-
+router.get('/id', wishlistController.getWishlistById);
 /**
  * @openapi
  * /wishlist/contribute-item:
