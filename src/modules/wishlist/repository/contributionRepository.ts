@@ -518,7 +518,7 @@ class ContributorsRepository {
 		console.log('Contribution refunded:', contributionId);
 	};
 
-	contributeToAll = async (data: {
+	contributeToAll2 = async (data: {
 		wishlistId: string;
 		contributorName: string;
 		contributorEmail: string;
@@ -544,8 +544,15 @@ class ContributorsRepository {
 			throw new AppError('No items in wishlist', 400);
 		}
 
+		console.log(`Total items in wishlist: ${items.length}`, JSON.stringify(items, null, 2));
+
+		if (data.totalAmount < 100) {
+			throw new AppError('Minimum total contribution amount is ₦100', 400);
+		}
+
 		// Filter items that still need funding
 		const unfundedItems = items.filter((item) => item.totalContributed < item.price);
+		console.log(`Unfunded items: ${unfundedItems.length} out of ${items.length}`);
 		if (unfundedItems.length === 0) {
 			throw new AppError('All items are fully funded', 400);
 		}
@@ -599,6 +606,245 @@ class ContributorsRepository {
 				break;
 			}
 		}
+
+		// Generate payment reference
+		const reference = `CONT-ALL-${nanoid(16)}`;
+
+		// Create contributions for each item
+		const contributions = await knexDb.transaction(async (trx) => {
+			const createdContributions: IContribution[] = [];
+
+			for (const allocation of allocations) {
+				if (allocation.amount <= 0) continue;
+
+				const [contribution] = await trx('contributions')
+					.insert({
+						wishlistId: wishlist.id,
+						wishlistItemId: allocation.wishlistItemId,
+						contributorName: data.contributorName,
+						contributorEmail: data.contributorEmail.toLowerCase(),
+						contributorPhone: data.contributorPhone,
+						message: data.message,
+						isAnonymous: data.isAnonymous || false,
+						amount: allocation.amount,
+						status: 'pending',
+						receiverId: wishlist.userId,
+						paymentMethod: 'paystack',
+						paymentReference: `${reference}-${allocation.wishlistItemId}`,
+					})
+					.returning('*');
+
+				createdContributions.push(contribution);
+			}
+
+			return createdContributions;
+		});
+
+		console.log(`Created ${contributions.length} contributions for "Contribute All"`);
+
+		// Initialize Paystack payment for total amount
+		const paymentData = await paystackService.initializePayment({
+			email: data.contributorEmail,
+			amount: data.totalAmount,
+			reference,
+			metadata: {
+				wishlistId: wishlist.id,
+				contributorName: data.contributorName,
+				contributionType: 'contribute_all',
+				itemCount: allocations.length,
+				allocations,
+			},
+			callbackUrl: `${wishlist.uniqueLink}`,
+		});
+
+		return {
+			contribution: {
+				wishlistId: wishlist.id,
+				contributorName: data.contributorName,
+				contributorEmail: data.contributorEmail,
+				reference,
+				totalAmount: data.totalAmount,
+				itemsCount: allocations.length,
+				itemAllocations: allocations,
+			},
+			paymentUrl: paymentData.authorization_url,
+		};
+	};
+
+	contributeToAll = async (data: {
+		wishlistId: string;
+		contributorName: string;
+		contributorEmail: string;
+		contributorPhone?: string;
+		totalAmount: number;
+		message?: string;
+		isAnonymous?: boolean;
+		allocationStrategy?: 'equal' | 'proportional' | 'priority';
+	}): Promise<{ contribution: IContributeAllRequest; paymentUrl: string }> => {
+		// Get wishlist
+		const wishlist = await wishlistRepository.findById(data.wishlistId);
+		if (!wishlist) {
+			throw new AppError('Wishlist not found', 404);
+		}
+
+		if (wishlist.status !== 'active') {
+			throw new AppError('This wishlist is not accepting contributions', 400);
+		}
+
+		// Get all items
+		const items = await wishlistItemRepository.findByWishlistId(data.wishlistId);
+		if (items.length === 0) {
+			throw new AppError('No items in wishlist', 400);
+		}
+
+		console.log(`Total items in wishlist: ${items.length}`, JSON.stringify(items, null, 2));
+
+		if (data.totalAmount < 100) {
+			throw new AppError('Minimum total contribution amount is ₦100', 400);
+		}
+
+		// Calculate allocation with overfunding support
+		const allocations: Array<{ wishlistItemId: string; amount: number }> = [];
+		let remainingAmount = data.totalAmount;
+
+		// FIRST PASS: Fund items to their target amounts
+		const unfundedItems = items.filter((item) => item.totalContributed < item.price);
+		console.log(`Unfunded items: ${unfundedItems.length} out of ${items.length}`);
+
+		if (unfundedItems.length > 0) {
+			// Allocate based on strategy to reach target amounts
+			let firstPassAllocations: Array<{ wishlistItemId: string; amount: number; needed: number }>;
+
+			switch (data.allocationStrategy) {
+				case 'equal': {
+					// Divide equally among unfunded items (up to what they need)
+					const amountPerItem = Math.floor(remainingAmount / unfundedItems.length);
+					firstPassAllocations = unfundedItems.map((item) => {
+						const needed = item.price - item.totalContributed;
+						return {
+							wishlistItemId: item.id,
+							amount: Math.min(amountPerItem, needed),
+							needed,
+						};
+					});
+					break;
+				}
+
+				case 'proportional': {
+					// Allocate proportionally based on item price
+					const totalNeeded = unfundedItems.reduce((sum, item) => sum + (item.price - item.totalContributed), 0);
+					firstPassAllocations = unfundedItems.map((item) => {
+						const needed = item.price - item.totalContributed;
+						const proportion = needed / totalNeeded;
+						const allocated = Math.floor(remainingAmount * proportion);
+						return {
+							wishlistItemId: item.id,
+							amount: Math.min(allocated, needed),
+							needed,
+						};
+					});
+					break;
+				}
+
+				case 'priority':
+				default: {
+					// Fill items by priority until money runs out or all are funded
+					const sortedItems = [...unfundedItems].sort((a, b) => (a.priority || 999) - (b.priority || 999));
+
+					firstPassAllocations = [];
+					let tempRemaining = remainingAmount;
+
+					for (const item of sortedItems) {
+						if (tempRemaining <= 0) break;
+						const needed = item.price - item.totalContributed;
+						const allocated = Math.min(needed, tempRemaining);
+						firstPassAllocations.push({
+							wishlistItemId: item.id,
+							amount: allocated,
+							needed,
+						});
+						tempRemaining -= allocated;
+					}
+					break;
+				}
+			}
+
+			// Apply first pass allocations
+			for (const allocation of firstPassAllocations) {
+				allocations.push({
+					wishlistItemId: allocation.wishlistItemId,
+					amount: allocation.amount,
+				});
+				remainingAmount -= allocation.amount;
+			}
+		}
+
+		console.log(`After first pass - Remaining amount: ₦${remainingAmount}`);
+
+		// SECOND PASS: If there's remaining amount, distribute it among all items
+		if (remainingAmount > 0 && items.length > 0) {
+			console.log(`Distributing remaining ₦${remainingAmount} among all ${items.length} items`);
+
+			switch (data.allocationStrategy) {
+				case 'equal': {
+					// Divide remaining amount equally among all items
+					const additionalPerItem = Math.floor(remainingAmount / items.length);
+					for (const item of items) {
+						const existingAllocation = allocations.find((a) => a.wishlistItemId === item.id);
+						if (existingAllocation) {
+							existingAllocation.amount += additionalPerItem;
+						} else {
+							allocations.push({
+								wishlistItemId: item.id,
+								amount: additionalPerItem,
+							});
+						}
+					}
+					break;
+				}
+
+				case 'proportional': {
+					// Distribute proportionally based on original item prices
+					const totalPrice = items.reduce((sum, item) => sum + item.price, 0);
+					for (const item of items) {
+						const proportion = item.price / totalPrice;
+						const additionalAmount = Math.floor(remainingAmount * proportion);
+						const existingAllocation = allocations.find((a) => a.wishlistItemId === item.id);
+						if (existingAllocation) {
+							existingAllocation.amount += additionalAmount;
+						} else {
+							allocations.push({
+								wishlistItemId: item.id,
+								amount: additionalAmount,
+							});
+						}
+					}
+					break;
+				}
+
+				case 'priority':
+				default: {
+					// Distribute by priority again
+					const sortedItems = [...items].sort((a, b) => (a.priority || 999) - (b.priority || 999));
+					const amountPerItem = Math.floor(remainingAmount / items.length);
+
+					for (const item of sortedItems) {
+						const existingAllocation = allocations.find((a) => a.wishlistItemId === item.id);
+						if (existingAllocation) {
+							existingAllocation.amount += amountPerItem;
+						} else {
+							allocations.push({
+								wishlistItemId: item.id,
+								amount: amountPerItem,
+							});
+						}
+					}
+					break;
+				}
+			}
+		}
+
+		console.log(`Final allocations:`, JSON.stringify(allocations, null, 2));
 
 		// Generate payment reference
 		const reference = `CONT-ALL-${nanoid(16)}`;
