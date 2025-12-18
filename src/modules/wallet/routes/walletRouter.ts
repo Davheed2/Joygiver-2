@@ -457,7 +457,7 @@ router.get('/banks', payoutController.getBanks);
 router.post('/verify-account', payoutController.verifyAccountNumber);
 /**
  * @openapi
- * /wallet/payout-methods:
+ * /wallet/payout-method:
  *   post:
  *     summary: Add a new payout method
  *     description: Adds a new payout method for the authenticated user by verifying the provided account number and bank code using the Paystack service. Ensures the account does not already exist for the user and optionally sets the payout method as primary. If set as primary, unsets other primary payout methods for the user.
@@ -582,7 +582,7 @@ router.post('/verify-account', payoutController.verifyAccountNumber);
 router.post('/payout-method', payoutController.addPayoutMethod);
 /**
  * @openapi
- * /wallet/payout-method:
+ * /wallet/payout-methods:
  *   get:
  *     summary: Retrieve user payout methods
  *     description: Fetches all payout methods associated with the authenticated user. Requires user authentication.
@@ -669,7 +669,7 @@ router.post('/payout-method', payoutController.addPayoutMethod);
  *                   type: string
  *                   example: "Please log in to view payout methods"
  */
-router.get('/payout-method', payoutController.getPayoutMethods);
+router.get('/payout-methods', payoutController.getPayoutMethods);
 /**
  * @openapi
  * /wallet/primary/payout-method:
