@@ -13,6 +13,7 @@ import {
 	wishlistViewRepository,
 } from '../repository';
 import { IWishlistItem } from '@/common/interfaces';
+import { withdrawalRequestRepository } from '@/modules/wallet/repository';
 
 export class WishlistController {
 	createWishlist = catchAsync(async (req: Request, res: Response) => {
@@ -233,15 +234,8 @@ export class WishlistController {
 			})
 		);
 
-		return AppResponse(
-			res,
-			200,
-			mappedData,
-			'Wishlists fetched successfully'
-		);
+		return AppResponse(res, 200, mappedData, 'Wishlists fetched successfully');
 	});
-
-	
 
 	/// document these 2
 	getWishlistStats = catchAsync(async (req: Request, res: Response) => {
@@ -258,7 +252,7 @@ export class WishlistController {
 
 	withdrawAllFromWishlist = catchAsync(async (req: Request, res: Response) => {
 		const { user } = req;
-		const { wishlistId } = req.body;
+		const { wishlistId, payoutMethodId, accountNumber, bankCode } = req.body;
 
 		if (!user) {
 			throw new AppError('Please log in', 401);
@@ -268,6 +262,17 @@ export class WishlistController {
 		}
 
 		const result = await itemWithdrawalRepository.withdrawAllFromWishlist(user.id, wishlistId);
+
+		const withdrawalRequst = await withdrawalRequestRepository.createWithdrawalRequest(
+			user.id,
+			Number(result.totalWithdrawn),
+			payoutMethodId,
+			accountNumber,
+			bankCode
+		);
+
+		const withdrawRequest = await withdrawalRequestRepository.processWithdrawal(withdrawalRequst.id);
+		console.log('Withdrawal request processed:', withdrawRequest);
 
 		return AppResponse(
 			res,

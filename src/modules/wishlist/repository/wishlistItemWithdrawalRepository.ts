@@ -148,7 +148,7 @@ class ItemWithdrawalRepository {
 
 	withdrawAllFromWishlist = async (
 		userId: string,
-		wishlistId: string
+		wishlistId: string,
 	): Promise<{
 		totalWithdrawn: number;
 		itemsWithdrawn: number;
