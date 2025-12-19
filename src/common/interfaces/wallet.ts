@@ -20,6 +20,7 @@ export interface IPayoutMethod {
 	recipientCode?: string;
 	isVerified: boolean;
 	isPrimary: boolean;
+	isNormalTransfer: boolean;
 	created_at: Date;
 	updated_at: Date;
 }

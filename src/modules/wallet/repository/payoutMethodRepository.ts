@@ -14,11 +14,14 @@ class PayoutMethodRepository {
 	};
 
 	findByUserId = async (userId: string): Promise<IPayoutMethod[]> => {
-		return await knexDb.table('payout_methods').where({ userId }).orderBy('created_at', 'desc');
+		return await knexDb
+			.table('payout_methods')
+			.where({ userId, isNormalTransfer: false })
+			.orderBy('created_at', 'desc');
 	};
 
 	findPrimaryByUserId = async (userId: string): Promise<IPayoutMethod | null> => {
-		return await knexDb.table('payout_methods').where({ userId, isPrimary: true }).first();
+		return await knexDb.table('payout_methods').where({ userId, isPrimary: true, isNormalTransfer: false }).first();
 	};
 
 	findByAccountNumber = async (

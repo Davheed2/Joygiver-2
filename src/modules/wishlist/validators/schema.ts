@@ -56,6 +56,14 @@ export const wishlistModuleSchema = z
 		imageUrl: z.string().url().optional(),
 		price: z.number().positive().optional(),
 		categoryId: uuidZ.optional(),
+		payoutMethodId: uuidZ.optional(),
+		accountName: z.string().min(1).max(255).optional(),
+		accountNumber: z
+			.string()
+			.regex(/^\d{10}$/, 'Account number must be 10 digits')
+			.optional(),
+		bankName: z.string().min(1).max(255).optional(),
+		bankCode: z.string().optional(),
 
 		// ==================== CONTRIBUTION FIELDS ====================
 		contributionId: uuidZ.optional(),

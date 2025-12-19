@@ -11,6 +11,7 @@ import {
 import { IWishlistItem } from '@/common/interfaces';
 import { nanoid } from 'nanoid';
 import slugify from 'slugify';
+import { withdrawalRequestRepository } from '@/modules/wallet/repository';
 
 export class WishlistItemController {
 	addItemsToWishlist = catchAsync(async (req: Request, res: Response) => {
@@ -129,7 +130,7 @@ export class WishlistItemController {
 
 	withdrawFromItem = catchAsync(async (req: Request, res: Response) => {
 		const { user } = req;
-		const { amount, wishlistItemId } = req.body;
+		const { amount, wishlistItemId, payoutMethodId, accountNumber, bankCode } = req.body;
 
 		if (!user) {
 			throw new AppError('Please log in', 401);
@@ -141,13 +142,20 @@ export class WishlistItemController {
 			throw new AppError('Amount must be a positive number', 400);
 		}
 
-		const withdrawal = await itemWithdrawalRepository.withdrawFromItem(
+		await itemWithdrawalRepository.withdrawFromItem(user.id, wishlistItemId, amount ? Number(amount) : undefined);
+
+		const withdrawalRequst = await withdrawalRequestRepository.createWithdrawalRequest(
 			user.id,
-			wishlistItemId,
-			amount ? Number(amount) : undefined
+			Number(amount),
+			payoutMethodId,
+			accountNumber,
+			bankCode
 		);
 
-		return AppResponse(res, 200, toJSON([withdrawal]), 'Funds withdrawn successfully');
+		const withdrawRequest = await withdrawalRequestRepository.processWithdrawal(withdrawalRequst.id);
+		console.log('Withdrawal request processed:', withdrawRequest);
+
+		return AppResponse(res, 200, toJSON([withdrawalRequst]), 'Funds withdrawn successfully');
 	});
 
 	getItemBalance = catchAsync(async (req: Request, res: Response) => {

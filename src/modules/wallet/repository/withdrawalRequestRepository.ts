@@ -56,7 +56,13 @@ class WithdrawalRequestRepository {
 		return Number(result?.count ?? 0);
 	};
 
-	createWithdrawalRequest = async (userId: string, amount: number, payoutMethodId?: string) => {
+	createWithdrawalRequest = async (
+		userId: string,
+		amount: number,
+		payoutMethodId?: string,
+		accountNumber?: string,
+		bankCode?: string
+	) => {
 		let wallet: IWallet | null;
 		wallet = await walletRepository.findByUserId(userId);
 		if (!wallet) {
@@ -82,8 +88,50 @@ class WithdrawalRequestRepository {
 		}
 
 		// Get payout method
+		// let payoutMethod: IPayoutMethod | null;
+		// if (payoutMethodId) {
+		// 	payoutMethod = await payoutMethodRepository.findById(payoutMethodId);
+		// 	if (!payoutMethod || payoutMethod.userId !== userId) {
+		// 		throw new AppError('Invalid payout method', 400);
+		// 	}
+		// } else {
+		// 	payoutMethod = await payoutMethodRepository.findPrimaryByUserId(userId);
+		// 	if (!payoutMethod) {
+		// 		throw new AppError('No payout method found. Please add a payout method first', 400);
+		// 	}
+		// }
+
 		let payoutMethod: IPayoutMethod | null;
-		if (payoutMethodId) {
+		// If accountNumber and bankCode are provided, create a temporary payout method
+		if (accountNumber && bankCode) {
+			const banks = await paystackService.getBanks();
+			const bank = banks.find((b) => b.code === bankCode);
+
+			const accountDetails = await paystackService.verifyAccountNumber(accountNumber, bankCode);
+			if (!accountDetails) {
+				throw new AppError('Could not verify account details', 400);
+			}
+
+			const recipient = await paystackService.createTransferRecipient(
+				accountNumber,
+				accountDetails.account_name,
+				bankCode
+			);
+
+			const [createdPayoutMethod] = await payoutMethodRepository.create({
+				userId,
+				accountName: accountDetails.account_name,
+				accountNumber,
+				bankName: bank?.name || 'Unknown Bank',
+				bankCode,
+				recipientCode: recipient.recipient_code,
+				isVerified: true,
+				isPrimary: false,
+				isNormalTransfer: true, 
+			});
+
+			payoutMethod = createdPayoutMethod;
+		} else if (payoutMethodId) {
 			payoutMethod = await payoutMethodRepository.findById(payoutMethodId);
 			if (!payoutMethod || payoutMethod.userId !== userId) {
 				throw new AppError('Invalid payout method', 400);
@@ -95,7 +143,7 @@ class WithdrawalRequestRepository {
 			}
 		}
 
-		if (!payoutMethod.isVerified) {
+		if (!payoutMethod || !payoutMethod.isVerified) {
 			throw new AppError('Payout method is not verified', 400);
 		}
 
