@@ -263,6 +263,8 @@ export class WishlistController {
 
 		const result = await itemWithdrawalRepository.withdrawAllFromWishlist(user.id, wishlistId);
 
+		console.log('result', result);
+
 		const withdrawalRequst = await withdrawalRequestRepository.createWithdrawalRequest(
 			user.id,
 			Number(result.totalWithdrawn),
