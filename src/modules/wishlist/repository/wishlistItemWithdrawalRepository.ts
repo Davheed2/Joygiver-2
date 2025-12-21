@@ -187,6 +187,8 @@ class ItemWithdrawalRepository {
 			}
 		}
 
+		console.log('withdrawals', withdrawals)
+
 		return {
 			totalWithdrawn: withdrawals.reduce(
 				(sum, w) => sum + (w.amount === undefined || w.amount === null ? 0 : Number(w.amount)),
