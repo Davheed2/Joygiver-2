@@ -78,6 +78,9 @@ class WithdrawalRequestRepository {
 			throw new AppError('Wallet not found', 404);
 		}
 
+		console.log(typeof amount, amount);
+		console.log(typeof WITHDRAWAL_LIMITS.MIN, WITHDRAWAL_LIMITS.MIN);
+
 		// Validation
 		if (amount < WITHDRAWAL_LIMITS.MIN) {
 			throw new AppError(`Minimum withdrawal amount is ₦${WITHDRAWAL_LIMITS.MIN.toLocaleString()}`, 400);
