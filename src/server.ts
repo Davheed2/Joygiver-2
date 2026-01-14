@@ -88,6 +88,7 @@ app.use(
 			'joygiver://localhost:8081',
 			'https://joygiver.co',
 			'https://www.joygiver.co',
+			'https://joygiver-admin.vercel.app',
 		],
 		credentials: true,
 	})
