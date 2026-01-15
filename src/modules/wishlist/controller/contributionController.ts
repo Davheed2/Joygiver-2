@@ -1,11 +1,7 @@
 import { Request, Response } from 'express';
 import { AppError, AppResponse, toJSON } from '@/common/utils';
 import { catchAsync } from '@/middlewares';
-import {
-	contributionRepository,
-	wishlistRepository,
-	wishlistViewRepository,
-} from '../repository';
+import { contributionRepository, wishlistRepository, wishlistViewRepository } from '../repository';
 import { IContribution } from '@/common/interfaces';
 
 export class ContributionController {
@@ -65,7 +61,9 @@ export class ContributionController {
 			res,
 			200,
 			toJSON([result]),
-			`Contributing ₦${amount.toLocaleString()} to ${result.contribution.itemsCount} items`
+			// 	`Contributing ₦${amount.toLocaleString()} to ${result.contribution.itemsCount} items`
+			// );
+			`Contributing ₦${result.contribution.netAmount.toLocaleString()} (₦${result.contribution.platformFee.toLocaleString()} fee) to ${result.contribution.itemsCount} items`
 		);
 	});
 
@@ -80,11 +78,7 @@ export class ContributionController {
 		const pageNum = parseInt(page as string, 10);
 		const limitNum = parseInt(limit as string, 10);
 
-		const contributions = await contributionRepository.getAllContributionsPerUser(
-			user.id,
-			pageNum,
-			limitNum
-		);
+		const contributions = await contributionRepository.getAllContributionsPerUser(user.id, pageNum, limitNum);
 
 		return AppResponse(res, 200, toJSON(contributions), 'Contributions retrieved successfully');
 	});

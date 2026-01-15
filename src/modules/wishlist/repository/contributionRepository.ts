@@ -518,158 +518,158 @@ class ContributorsRepository {
 		console.log('Contribution refunded:', contributionId);
 	};
 
-	contributeToAll2 = async (data: {
-		wishlistId: string;
-		contributorName: string;
-		contributorEmail: string;
-		contributorPhone?: string;
-		totalAmount: number;
-		message?: string;
-		isAnonymous?: boolean;
-		allocationStrategy?: 'equal' | 'proportional' | 'priority';
-	}): Promise<{ contribution: IContributeAllRequest; paymentUrl: string }> => {
-		// Get wishlist
-		const wishlist = await wishlistRepository.findById(data.wishlistId);
-		if (!wishlist) {
-			throw new AppError('Wishlist not found', 404);
-		}
+	// contributeToAll2 = async (data: {
+	// 	wishlistId: string;
+	// 	contributorName: string;
+	// 	contributorEmail: string;
+	// 	contributorPhone?: string;
+	// 	totalAmount: number;
+	// 	message?: string;
+	// 	isAnonymous?: boolean;
+	// 	allocationStrategy?: 'equal' | 'proportional' | 'priority';
+	// }): Promise<{ contribution: IContributeAllRequest; paymentUrl: string }> => {
+	// 	// Get wishlist
+	// 	const wishlist = await wishlistRepository.findById(data.wishlistId);
+	// 	if (!wishlist) {
+	// 		throw new AppError('Wishlist not found', 404);
+	// 	}
 
-		if (wishlist.status !== 'active') {
-			throw new AppError('This wishlist is not accepting contributions', 400);
-		}
+	// 	if (wishlist.status !== 'active') {
+	// 		throw new AppError('This wishlist is not accepting contributions', 400);
+	// 	}
 
-		// Get all items
-		const items = await wishlistItemRepository.findByWishlistId(data.wishlistId);
-		if (items.length === 0) {
-			throw new AppError('No items in wishlist', 400);
-		}
+	// 	// Get all items
+	// 	const items = await wishlistItemRepository.findByWishlistId(data.wishlistId);
+	// 	if (items.length === 0) {
+	// 		throw new AppError('No items in wishlist', 400);
+	// 	}
 
-		console.log(`Total items in wishlist: ${items.length}`, JSON.stringify(items, null, 2));
+	// 	console.log(`Total items in wishlist: ${items.length}`, JSON.stringify(items, null, 2));
 
-		if (data.totalAmount < 100) {
-			throw new AppError('Minimum total contribution amount is ₦100', 400);
-		}
+	// 	if (data.totalAmount < 100) {
+	// 		throw new AppError('Minimum total contribution amount is ₦100', 400);
+	// 	}
 
-		// Filter items that still need funding
-		const unfundedItems = items.filter((item) => item.totalContributed < item.price);
-		console.log(`Unfunded items: ${unfundedItems.length} out of ${items.length}`);
-		if (unfundedItems.length === 0) {
-			throw new AppError('All items are fully funded', 400);
-		}
+	// 	// Filter items that still need funding
+	// 	const unfundedItems = items.filter((item) => item.totalContributed < item.price);
+	// 	console.log(`Unfunded items: ${unfundedItems.length} out of ${items.length}`);
+	// 	if (unfundedItems.length === 0) {
+	// 		throw new AppError('All items are fully funded', 400);
+	// 	}
 
-		// Calculate allocation based on strategy
-		let allocations: Array<{ wishlistItemId: string; amount: number }>;
+	// 	// Calculate allocation based on strategy
+	// 	let allocations: Array<{ wishlistItemId: string; amount: number }>;
 
-		switch (data.allocationStrategy) {
-			case 'equal': {
-				// Divide equally among unfunded items
-				const amountPerItem = Math.floor(data.totalAmount / unfundedItems.length);
-				allocations = unfundedItems.map((item) => ({
-					wishlistItemId: item.id,
-					amount: amountPerItem,
-				}));
-				break;
-			}
+	// 	switch (data.allocationStrategy) {
+	// 		case 'equal': {
+	// 			// Divide equally among unfunded items
+	// 			const amountPerItem = Math.floor(data.totalAmount / unfundedItems.length);
+	// 			allocations = unfundedItems.map((item) => ({
+	// 				wishlistItemId: item.id,
+	// 				amount: amountPerItem,
+	// 			}));
+	// 			break;
+	// 		}
 
-			case 'proportional': {
-				// Allocate proportionally based on item price
-				const totalNeeded = unfundedItems.reduce((sum, item) => sum + (item.price - item.totalContributed), 0);
-				allocations = unfundedItems.map((item) => {
-					const needed = item.price - item.totalContributed;
-					const proportion = needed / totalNeeded;
-					return {
-						wishlistItemId: item.id,
-						amount: Math.floor(data.totalAmount * proportion),
-					};
-				});
-				break;
-			}
+	// 		case 'proportional': {
+	// 			// Allocate proportionally based on item price
+	// 			const totalNeeded = unfundedItems.reduce((sum, item) => sum + (item.price - item.totalContributed), 0);
+	// 			allocations = unfundedItems.map((item) => {
+	// 				const needed = item.price - item.totalContributed;
+	// 				const proportion = needed / totalNeeded;
+	// 				return {
+	// 					wishlistItemId: item.id,
+	// 					amount: Math.floor(data.totalAmount * proportion),
+	// 				};
+	// 			});
+	// 			break;
+	// 		}
 
-			case 'priority':
-			default: {
-				// Fill items by priority until money runs out
-				const sortedItems = [...unfundedItems].sort((a, b) => (a.priority || 999) - (b.priority || 999));
+	// 		case 'priority':
+	// 		default: {
+	// 			// Fill items by priority until money runs out
+	// 			const sortedItems = [...unfundedItems].sort((a, b) => (a.priority || 999) - (b.priority || 999));
 
-				let remaining = data.totalAmount;
-				allocations = [];
+	// 			let remaining = data.totalAmount;
+	// 			allocations = [];
 
-				for (const item of sortedItems) {
-					if (remaining <= 0) break;
-					const needed = item.price - item.totalContributed;
-					const allocated = Math.min(needed, remaining);
-					allocations.push({
-						wishlistItemId: item.id,
-						amount: allocated,
-					});
-					remaining -= allocated;
-				}
-				break;
-			}
-		}
+	// 			for (const item of sortedItems) {
+	// 				if (remaining <= 0) break;
+	// 				const needed = item.price - item.totalContributed;
+	// 				const allocated = Math.min(needed, remaining);
+	// 				allocations.push({
+	// 					wishlistItemId: item.id,
+	// 					amount: allocated,
+	// 				});
+	// 				remaining -= allocated;
+	// 			}
+	// 			break;
+	// 		}
+	// 	}
 
-		// Generate payment reference
-		const reference = `CONT-ALL-${nanoid(16)}`;
+	// 	// Generate payment reference
+	// 	const reference = `CONT-ALL-${nanoid(16)}`;
 
-		// Create contributions for each item
-		const contributions = await knexDb.transaction(async (trx) => {
-			const createdContributions: IContribution[] = [];
+	// 	// Create contributions for each item
+	// 	const contributions = await knexDb.transaction(async (trx) => {
+	// 		const createdContributions: IContribution[] = [];
 
-			for (const allocation of allocations) {
-				if (allocation.amount <= 0) continue;
+	// 		for (const allocation of allocations) {
+	// 			if (allocation.amount <= 0) continue;
 
-				const [contribution] = await trx('contributions')
-					.insert({
-						wishlistId: wishlist.id,
-						wishlistItemId: allocation.wishlistItemId,
-						contributorName: data.contributorName,
-						contributorEmail: data.contributorEmail.toLowerCase(),
-						contributorPhone: data.contributorPhone,
-						message: data.message,
-						isAnonymous: data.isAnonymous || false,
-						amount: allocation.amount,
-						status: 'pending',
-						receiverId: wishlist.userId,
-						paymentMethod: 'paystack',
-						paymentReference: `${reference}-${allocation.wishlistItemId}`,
-					})
-					.returning('*');
+	// 			const [contribution] = await trx('contributions')
+	// 				.insert({
+	// 					wishlistId: wishlist.id,
+	// 					wishlistItemId: allocation.wishlistItemId,
+	// 					contributorName: data.contributorName,
+	// 					contributorEmail: data.contributorEmail.toLowerCase(),
+	// 					contributorPhone: data.contributorPhone,
+	// 					message: data.message,
+	// 					isAnonymous: data.isAnonymous || false,
+	// 					amount: allocation.amount,
+	// 					status: 'pending',
+	// 					receiverId: wishlist.userId,
+	// 					paymentMethod: 'paystack',
+	// 					paymentReference: `${reference}-${allocation.wishlistItemId}`,
+	// 				})
+	// 				.returning('*');
 
-				createdContributions.push(contribution);
-			}
+	// 			createdContributions.push(contribution);
+	// 		}
 
-			return createdContributions;
-		});
+	// 		return createdContributions;
+	// 	});
 
-		console.log(`Created ${contributions.length} contributions for "Contribute All"`);
+	// 	console.log(`Created ${contributions.length} contributions for "Contribute All"`);
 
-		// Initialize Paystack payment for total amount
-		const paymentData = await paystackService.initializePayment({
-			email: data.contributorEmail,
-			amount: data.totalAmount,
-			reference,
-			metadata: {
-				wishlistId: wishlist.id,
-				contributorName: data.contributorName,
-				contributionType: 'contribute_all',
-				itemCount: allocations.length,
-				allocations,
-			},
-			callbackUrl: `${wishlist.uniqueLink}`,
-		});
+	// 	// Initialize Paystack payment for total amount
+	// 	const paymentData = await paystackService.initializePayment({
+	// 		email: data.contributorEmail,
+	// 		amount: data.totalAmount,
+	// 		reference,
+	// 		metadata: {
+	// 			wishlistId: wishlist.id,
+	// 			contributorName: data.contributorName,
+	// 			contributionType: 'contribute_all',
+	// 			itemCount: allocations.length,
+	// 			allocations,
+	// 		},
+	// 		callbackUrl: `${wishlist.uniqueLink}`,
+	// 	});
 
-		return {
-			contribution: {
-				wishlistId: wishlist.id,
-				contributorName: data.contributorName,
-				contributorEmail: data.contributorEmail,
-				reference,
-				totalAmount: data.totalAmount,
-				itemsCount: allocations.length,
-				itemAllocations: allocations,
-			},
-			paymentUrl: paymentData.authorization_url,
-		};
-	};
+	// 	return {
+	// 		contribution: {
+	// 			wishlistId: wishlist.id,
+	// 			contributorName: data.contributorName,
+	// 			contributorEmail: data.contributorEmail,
+	// 			reference,
+	// 			totalAmount: data.totalAmount,
+	// 			itemsCount: allocations.length,
+	// 			itemAllocations: allocations,
+	// 		},
+	// 		paymentUrl: paymentData.authorization_url,
+	// 	};
+	// };
 
 	contributeToAll = async (data: {
 		wishlistId: string;
@@ -703,9 +703,21 @@ class ContributorsRepository {
 			throw new AppError('Minimum total contribution amount is ₦100', 400);
 		}
 
+		// ============ CALCULATE FEES BEFORE ALLOCATION ============
+		const fee = paystackService.calculateWithdrawalFee(data.totalAmount);
+		const netAmount = data.totalAmount - fee;
+
+		console.log(`Contribution breakdown:`, {
+			totalAmount: data.totalAmount,
+			fee,
+			netAmount,
+			feePercentage: ((fee / data.totalAmount) * 100).toFixed(2) + '%',
+		});
+
 		// Calculate allocation with overfunding support
 		const allocations: Array<{ wishlistItemId: string; amount: number }> = [];
-		let remainingAmount = data.totalAmount;
+		// let remainingAmount = data.totalAmount;
+		let remainingAmount = netAmount;
 
 		// FIRST PASS: Fund items to their target amounts
 		const unfundedItems = items.filter((item) => item.totalContributed < item.price);
@@ -868,6 +880,8 @@ class ContributorsRepository {
 						amount: allocation.amount,
 						status: 'pending',
 						receiverId: wishlist.userId,
+						platformFee: fee,
+						grossAmount: data.totalAmount,
 						paymentMethod: 'paystack',
 						paymentReference: `${reference}-${allocation.wishlistItemId}`,
 					})
@@ -905,6 +919,8 @@ class ContributorsRepository {
 				totalAmount: data.totalAmount,
 				itemsCount: allocations.length,
 				itemAllocations: allocations,
+				netAmount,
+				platformFee: fee,
 			},
 			paymentUrl: paymentData.authorization_url,
 		};

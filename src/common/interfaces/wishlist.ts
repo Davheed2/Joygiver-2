@@ -146,6 +146,8 @@ export interface IContribution {
 	paymentMethod: 'paystack' | 'flutterwave' | 'bank_transfer';
 	paymentReference: string;
 	receiverId: string;
+	grossAmount: number;
+	platformFee: number;
 	paystackReference?: string;
 	ownerReply?: string;
 	repliedAt?: Date;
@@ -222,6 +224,8 @@ export interface IContributeAllRequest {
 	message?: string;
 	reference?: string;
 	itemsCount: number;
+	platformFee: number;
+	netAmount: number;
 	isAnonymous?: boolean;
 	itemAllocations: Array<{
 		wishlistItemId: string;
