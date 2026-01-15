@@ -151,8 +151,8 @@ class WithdrawalRequestRepository {
 		}
 
 		// Calculate fees
-		const fee = paystackService.calculateWithdrawalFee(amount);
-		const netAmount = amount - fee;
+		// const fee = paystackService.calculateWithdrawalFee(amount);
+		// const netAmount = amount - fee;
 
 		// Generate reference
 		const reference = `WTH-${nanoid(16)}`;
@@ -174,8 +174,8 @@ class WithdrawalRequestRepository {
 					walletId: wallet.id,
 					payoutMethodId: payoutMethod.id,
 					amount,
-					fee,
-					netAmount,
+					fee: 0,
+					netAmount: amount,
 					status: 'pending',
 					paymentReference: reference,
 				})
@@ -197,17 +197,17 @@ class WithdrawalRequestRepository {
 			});
 
 			// Create fee transaction
-			await trx('wallet_transactions').insert({
-				userId,
-				walletId: wallet.id,
-				type: 'fee',
-				amount: -fee,
-				balanceBefore: wallet.availableBalance - amount,
-				balanceAfter: wallet.availableBalance - amount,
-				reference: `${reference}-FEE`,
-				description: 'Withdrawal fee',
-				metadata: { withdrawalRequestId: request.id },
-			});
+			// await trx('wallet_transactions').insert({
+			// 	userId,
+			// 	walletId: wallet.id,
+			// 	type: 'fee',
+			// 	amount: -fee,
+			// 	balanceBefore: wallet.availableBalance - amount,
+			// 	balanceAfter: wallet.availableBalance - amount,
+			// 	reference: `${reference}-FEE`,
+			// 	description: 'Withdrawal fee',
+			// 	metadata: { withdrawalRequestId: request.id },
+			// });
 
 			await notificationService.notifyPendingTransaction(userId, 'withdrawal', amount, 'NGN');
 		});
