@@ -2076,7 +2076,7 @@ router.get('/items', curatedItemController.getCuratedItems);
  *                   type: string
  *                   example: "Failed to update curated item"
  */
-router.post('/update-item', curatedItemController.updateCuratedItem);
+router.post('/update-item', multerUpload.single('image'), curatedItemController.updateCuratedItem);
 /**
  * @openapi
  * /wishlist/delete-item:
