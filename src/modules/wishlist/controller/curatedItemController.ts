@@ -3,8 +3,50 @@ import { AppError, AppResponse, toJSON, uploadPictureFile } from '@/common/utils
 import { catchAsync } from '@/middlewares';
 import { Gender } from '@/common/constants';
 import { categoryRepository, curatedItemRepository } from '../repository';
-import { ICuratedItem } from '@/common/interfaces';
+import { ICategory, ICuratedItem } from '@/common/interfaces';
 import { userRepository } from '@/modules/user/repository';
+import { parse } from 'csv-parse/sync';
+
+// interface CsvRow {
+// 	name: string;
+// 	imageUrl: string;
+// 	price: string;
+// 	categoryId?: string;
+// 	gender?: string;
+// }
+
+// interface ValidationError {
+// 	row: number;
+// 	errors: string[];
+// }
+
+// interface BulkUploadResult {
+// 	successCount: number;
+// 	failureCount: number;
+// 	errors: ValidationError[];
+// 	createdItems: ICuratedItem[];
+// }
+
+// Updated TypeScript interface for CSV rows
+interface CsvRow {
+	name: string;
+	imageUrl: string;
+	price: string;
+	categoryName?: string; // Changed from categoryId to categoryName
+	gender?: string;
+}
+
+interface ValidationError {
+	row: number;
+	errors: string[];
+}
+
+interface BulkUploadResult {
+	successCount: number;
+	failureCount: number;
+	errors: ValidationError[];
+	createdItems: ICuratedItem[];
+}
 
 export class CuratedItemController {
 	createCuratedItem = catchAsync(async (req: Request, res: Response) => {
@@ -85,6 +127,192 @@ export class CuratedItemController {
 		}
 
 		return AppResponse(res, 201, toJSON([curatedItem]), 'Curated item created successfully');
+	});
+
+	bulkUploadCuratedItems = catchAsync(async (req: Request, res: Response) => {
+		const { user } = req;
+		const csvFile = req.file;
+
+		if (!user) {
+			throw new AppError('Please log in to bulk upload curated items', 401);
+		}
+		if (!csvFile) {
+			throw new AppError('CSV file is required', 400);
+		}
+		if (!csvFile.originalname.endsWith('.csv') && csvFile.mimetype !== 'text/csv') {
+			throw new AppError('Only CSV files are allowed', 400);
+		}
+
+		const isAdmin = user.role === 'admin';
+		const itemType = isAdmin ? 'global' : 'custom';
+		const isPublic = isAdmin;
+
+		let records: CsvRow[];
+		try {
+			records = parse(csvFile.buffer, {
+				columns: true,
+				skip_empty_lines: true,
+				trim: true,
+			});
+		} catch (error) {
+			console.log('CSV Parse Error:', error);
+			throw new AppError('Failed to parse CSV file. Please ensure it is properly formatted', 400);
+		}
+
+		if (!records || records.length === 0) {
+			throw new AppError('CSV file is empty', 400);
+		}
+
+		const categoryNames = records
+			.map((row) => row.categoryName?.trim())
+			.filter((name): name is string => !!name && name !== '');
+
+		let allCategories: ICategory[] = [];
+		if (categoryNames.length > 0) {
+			const uniqueCategoryNames = [...new Set(categoryNames)];
+			allCategories = await categoryRepository.findByNames(uniqueCategoryNames);
+		}
+
+		const genderMap: Record<string, Gender> = {
+			male: Gender.MALE,
+			female: Gender.FEMALE,
+			prefer_not_to_say: Gender.PREFER_NOT_TO_SAY,
+		};
+
+		const result: BulkUploadResult = {
+			successCount: 0,
+			failureCount: 0,
+			errors: [],
+			createdItems: [],
+		};
+
+		for (let i = 0; i < records.length; i++) {
+			const row = records[i];
+			const rowNumber = i + 2; // +2 because: +1 for 0-index, +1 for header row
+			const rowErrors: string[] = [];
+
+			try {
+				if (!row.name || row.name.trim() === '') {
+					rowErrors.push('Name is required');
+				}
+
+				if (!row.price || row.price.trim() === '') {
+					rowErrors.push('Price is required');
+				} else {
+					const parsedPrice = parseFloat(row.price);
+					if (isNaN(parsedPrice)) {
+						rowErrors.push('Price must be a valid number');
+					} else if (parsedPrice <= 0) {
+						rowErrors.push('Price must be greater than 0');
+					}
+				}
+
+				if (!row.imageUrl || row.imageUrl.trim() === '') {
+					rowErrors.push('Image URL is required');
+				} else {
+					try {
+						new URL(row.imageUrl);
+					} catch {
+						rowErrors.push('Invalid image URL format');
+					}
+				}
+
+				let categoryId: string | undefined = undefined;
+				if (row.categoryName && row.categoryName.trim() !== '') {
+					const searchTerm = row.categoryName.trim().toLowerCase();
+
+					let matchedCategory = allCategories.find((cat) => cat.name.toLowerCase() === searchTerm);
+
+					if (!matchedCategory) {
+						matchedCategory = allCategories.find((cat) => {
+							const dbName = cat.name.toLowerCase();
+							return dbName.includes(searchTerm) || searchTerm.includes(dbName);
+						});
+					}
+
+					if (matchedCategory) {
+						categoryId = matchedCategory.id;
+						console.log(`Matched "${searchTerm}" to category "${matchedCategory.name}"`);
+					} else {
+						console.log(`Category "${row.categoryName}" not found, creating item without category`);
+					}
+				}
+
+				let assignedGender: Gender;
+				if (isAdmin) {
+					if (row.gender && row.gender.trim() !== '') {
+						const mappedGender = genderMap[row.gender.toLowerCase().trim()];
+						if (!mappedGender) {
+							rowErrors.push('Invalid gender. Must be male, female, or prefer_not_to_say');
+						}
+						assignedGender = mappedGender || Gender.PREFER_NOT_TO_SAY;
+					} else {
+						assignedGender = Gender.PREFER_NOT_TO_SAY;
+					}
+				} else {
+					assignedGender = user.gender;
+				}
+
+				if (rowErrors.length > 0) {
+					result.failureCount++;
+					result.errors.push({
+						row: rowNumber,
+						errors: rowErrors,
+					});
+					continue;
+				}
+
+				const [curatedItem] = await curatedItemRepository.create({
+					name: row.name.trim(),
+					imageUrl: row.imageUrl.trim(),
+					price: parseFloat(row.price),
+					categoryId: categoryId || undefined,
+					gender: assignedGender!,
+					popularity: 0,
+					isActive: true,
+					createdBy: user.id,
+					itemType,
+					isPublic,
+				});
+
+				if (curatedItem) {
+					result.successCount++;
+					result.createdItems.push(curatedItem);
+				} else {
+					result.failureCount++;
+					result.errors.push({
+						row: rowNumber,
+						errors: ['Failed to create curated item in database'],
+					});
+				}
+			} catch (error) {
+				result.failureCount++;
+				result.errors.push({
+					row: rowNumber,
+					errors: [error instanceof Error ? error.message : 'Unknown error occurred'],
+				});
+			}
+		}
+
+		let message = `Bulk upload completed. ${result.successCount} items created successfully`;
+		if (result.failureCount > 0) {
+			message += `, ${result.failureCount} items failed`;
+		}
+
+		return AppResponse(
+			res,
+			result.failureCount === records.length ? 400 : 201,
+			{
+				summary: {
+					totalRows: records.length,
+					successCount: result.successCount,
+					failureCount: result.failureCount,
+				},
+				errors: result.errors,
+				createdItems: result.createdItems,
+			},
+			message
+		);
 	});
 
 	getCuratedItems = catchAsync(async (req: Request, res: Response) => {

@@ -1577,6 +1577,176 @@ router.post('/delete-category', categoryController.deleteCategory);
 router.post('/create-item', multerUpload.single('image'), curatedItemController.createCuratedItem);
 /**
  * @openapi
+ * /wishlist/create-bulk-items:
+ *   post:
+ *     summary: Bulk upload curated items via CSV (Admin & Users)
+ *     description: >
+ *       Uploads multiple curated items in one request using a CSV file.
+ *       
+ *       • Admins create global public items (visible to all users).
+ *       • Regular users create custom private items (tied to their own gender).
+ *       • CSV must contain these headers:
+ *         - name (required)
+ *         - price (required)
+ *         - imageUrl (required)
+ *         - categoryName (optional)
+ *         - gender (optional — only used for admins)
+ *       • categoryName is matched using partial/approximate search — item is created without category if no match is found.
+ *       • For non-admins: gender is taken from the user's profile.
+ *       • For admins: gender comes from CSV or defaults to 'prefer_not_to_say' if missing/invalid.
+ *       • Returns a summary of the upload (success/failure counts), list of errors per row (if any), and the successfully created items.
+ *     tags:
+ *       - Wishlist
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: |
+ *                   CSV file containing curated items to upload
+ *                   Required columns: name, price, imageUrl
+ *                   Optional columns: categoryName, gender
+ *     responses:
+ *       201:
+ *         description: Bulk upload completed successfully (all or partial success)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     summary:
+ *                       type: object
+ *                       properties:
+ *                         totalRows:
+ *                           type: integer
+ *                           example: 6
+ *                         successCount:
+ *                           type: integer
+ *                           example: 6
+ *                         failureCount:
+ *                           type: integer
+ *                           example: 0
+ *                     errors:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           row:
+ *                             type: integer
+ *                             example: 3
+ *                           errors:
+ *                             type: array
+ *                             items:
+ *                               type: string
+ *                             example:
+ *                               - "Price must be greater than 0"
+ *                               - "Invalid image URL format"
+ *                     createdItems:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                             format: uuid
+ *                             example: "79c326df-76f6-4334-84c7-7422377a5167"
+ *                           name:
+ *                             type: string
+ *                             example: "Men's Leather Jacket"
+ *                           imageUrl:
+ *                             type: string
+ *                             example: "https://example.com/images/jacket.jpg"
+ *                           price:
+ *                             type: string
+ *                             example: "129.99"
+ *                           popularity:
+ *                             type: integer
+ *                             example: 0
+ *                           isActive:
+ *                             type: boolean
+ *                             example: true
+ *                           itemType:
+ *                             type: string
+ *                             enum: [global, custom]
+ *                             example: "global"
+ *                           gender:
+ *                             type: string
+ *                             enum: [MALE, FEMALE, PREFER_NOT_TO_SAY]
+ *                             example: "male"
+ *                           isPublic:
+ *                             type: boolean
+ *                             example: true
+ *                           categoryId:
+ *                             type: string
+ *                             format: uuid
+ *                             nullable: true
+ *                             example: "94c25650-72ec-4551-b6c8-3255198043d2"
+ *                           createdBy:
+ *                             type: string
+ *                             format: uuid
+ *                           created_at:
+ *                             type: string
+ *                             format: date-time
+ *                           updated_at:
+ *                             type: string
+ *                             format: date-time
+ *                 message:
+ *                   type: string
+ *                   example: "Bulk upload completed. 6 items created successfully"
+ *       400:
+ *         description: Bad Request - Invalid CSV format, missing file, validation errors
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 message:
+ *                   type: string
+ *                   example: "Only CSV files are allowed"
+ *       401:
+ *         description: Unauthorized - User not authenticated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 message:
+ *                   type: string
+ *                   example: "Please log in to bulk upload curated items"
+ *       500:
+ *         description: Internal Server Error - CSV parsing or processing failure
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 message:
+ *                   type: string
+ *                   example: "Failed to parse CSV file. Please ensure it is properly formatted"
+ */
+router.post('/create-bulk-items', multerUpload.single('csvFile'), curatedItemController.bulkUploadCuratedItems);
+/**
+ * @openapi
  * /wishlist/items:
  *   get:
  *     summary: Get curated items (filtered by category, budget, and user's gender)
